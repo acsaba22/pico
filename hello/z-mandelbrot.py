@@ -1,9 +1,9 @@
 import sys
 if "/lib" not in sys.path:
     sys.path.append("/lib")
+import lcd
 
 import math
-import lcd
 
 MAX_ITERATION = 100
 ABS_LIMIT = 100
@@ -16,11 +16,11 @@ def color(mandelColor):
   r = math.sin(rFreq*mandelColor)/2+0.5
   g = math.sin(gFreq*mandelColor)/2+0.5
   b = math.sin(bFreq*mandelColor)/2+0.5
-  ret = int((2**5)*r)
-  ret <<= 6
-  ret |= int((2**5)*g)
+  ret = int((2**5)*b)
   ret <<= 5
-  ret |= int((2**6)*b)
+  ret |= int((2**5)*r)
+  ret <<= 6
+  ret |= int((2**6)*g)
   return ret
 
 COLORS=[color(i/MAX_ITERATION) for i in range(MAX_ITERATION+1)]
@@ -36,11 +36,12 @@ def mandelbrot(x, y):
 
 def draw_mandelbrot(lcd):
     zoom = 0.004
-    step = 16
+    zoom = 0.01
+    step = 4
+    offset = (0*-240, 0)
     zs = zoom*step
     buffer = bytearray(480*2)
-    sx = (-240-240)*zoom
-    my = (-160)*zoom
+    sx = (offset[0]-240)*zoom
     for y in range(0, 160, step): #159, -1, -step):
         mx = sx
         my = (y-160)*zoom
@@ -49,12 +50,12 @@ def draw_mandelbrot(lcd):
             c = COLORS[mandelbrot(mx, my)]
             mx += zs
             for s in range(step):
-                buffer[(x<<1)+s*2] = c>>8
-                buffer[(x<<1)+s*2+1] = c&0xFF
+                buffer[(x<<1)+(s<<1)] = c>>8
+                buffer[(x<<1)+(s<<1)+1] = c&0xFF
         for s in range(step):
-            lcd.show_buffer(0, y+s, 479, y+s, bytearray(buffer))
+            lcd.show_buffer(0, y+s, 479, y+s, buffer)
         for s in range(step):
-            lcd.show_buffer(0, 319-y-s, 479, 319-y-s, bytearray(buffer))
+            lcd.show_buffer(0, 319-y-s, 479, 319-y-s, buffer)
 
 def main():
     screen = lcd.LCD_3inch5()
