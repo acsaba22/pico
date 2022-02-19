@@ -22,8 +22,8 @@ class LCD_3inch5(framebuf.FrameBuffer):
         self.WHITE =   0xffff
         self.BLACK =   0x0000
         
-        self.width = 480
-        self.height = 160
+        self.width = 1
+        self.height = 1
         
         self.cs = Pin(LCD_CS,Pin.OUT)
         self.rst = Pin(LCD_RST,Pin.OUT)
@@ -54,8 +54,17 @@ class LCD_3inch5(framebuf.FrameBuffer):
         self.cs(1)
         self.dc(1)
         self.cs(0)
-        #self.spi.write(bytearray([0X00]))
         self.spi.write(bytearray([buf]))
+        self.cs(1)
+        
+    def write_data_buffer(self, buf):
+        for b in buf:
+            self.write_data(b)
+        return
+        self.cs(1)
+        self.dc(1)
+        self.cs(0)
+        self.spi.write(bytearray(buf))
         self.cs(1)
 
 
@@ -122,46 +131,21 @@ class LCD_3inch5(framebuf.FrameBuffer):
         
         self.write_cmd(0x36)
         self.write_data(0x28)
-    def show_up(self):
+    def show_buffer(self, low_x, low_y, high_x, high_y, buffer=None):
         self.write_cmd(0x2A)
-        self.write_data(0x00)
-        self.write_data(0x00)
-        self.write_data(0x01)
-        self.write_data(0xdf)
+        self.write_data_buffer([low_x>>8, low_x&0xFF, high_x>>8, high_x&0xFF])
         
         self.write_cmd(0x2B)
-        self.write_data(0x00)
-        self.write_data(0x00)
-        self.write_data(0x00)
-        self.write_data(0x9f)
+        self.write_data_buffer([low_y>>8, low_y&0xFF, high_y>>8, high_y&0xFF])
         
         self.write_cmd(0x2C)
         
         self.cs(1)
         self.dc(1)
         self.cs(0)
-        self.spi.write(self.buffer)
+        self.spi.write(buffer or self.buffer)
         self.cs(1)
-    def show_down(self):
-        self.write_cmd(0x2A)
-        self.write_data(0x00)
-        self.write_data(0x00)
-        self.write_data(0x01)
-        self.write_data(0xdf)
-        
-        self.write_cmd(0x2B)
-        self.write_data(0x00)
-        self.write_data(0xA0)
-        self.write_data(0x01)
-        self.write_data(0x3f)
-        
-        self.write_cmd(0x2C)
-        
-        self.cs(1)
-        self.dc(1)
-        self.cs(0)
-        self.spi.write(self.buffer)
-        self.cs(1)
+
     def bl_ctrl(self,duty):
         pwm = PWM(Pin(LCD_BL))
         pwm.freq(1000)
@@ -169,9 +153,11 @@ class LCD_3inch5(framebuf.FrameBuffer):
             pwm.duty_u16(65535)
         else:
             pwm.duty_u16(655*duty)
+    def show_point(self,x,y,color):
+        self.show_buffer(x, y, x, y, bytearray([color>>8, color&0xff]));
+        
     def draw_point(self,x,y,color):
         self.write_cmd(0x2A)
-
         
         self.write_data((x-2)>>8)
         self.write_data((x-2)&0xff)
@@ -189,11 +175,8 @@ class LCD_3inch5(framebuf.FrameBuffer):
         self.cs(1)
         self.dc(1)
         self.cs(0)
-        for i in range(0,9):
-            h_color = bytearray(color>>8)
-            l_color = bytearray(color&0xff)
-            self.spi.write(h_color)
-            self.spi.write(l_color)
+        spi_color = bytearray([color>>8, color&0xff]*9)
+        self.spi.write(spi_color)
         self.cs(1)
     def touch_get(self): 
         if self.irq() == 0:
@@ -216,6 +199,7 @@ class LCD_3inch5(framebuf.FrameBuffer):
             
             self.tp_cs(1) 
             self.spi = SPI(1,60_000_000,sck=Pin(LCD_SCK),mosi=Pin(LCD_MOSI),miso=Pin(LCD_MISO))
+            X_Point = min(480, max(0, int((X_Point-430)*480/3270)))
+            Y_Point = min(320, max(0, 320-int((Y_Point-430)*320/3270)))
             Result_list = [X_Point,Y_Point]
-            #print(Result_list)
             return(Result_list)

@@ -180,7 +180,6 @@ class LCD_3inch5(framebuf.FrameBuffer):
             X_Point = min(480, max(0, int((X_Point-430)*480/3270)))
             Y_Point = min(320, max(0, 320-int((Y_Point-430)*320/3270)))
             Result_list = [X_Point,Y_Point]
-            #print(Result_list)
             return(Result_list)
 
 if __name__=='__main__':
