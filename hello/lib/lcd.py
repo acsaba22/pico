@@ -1,7 +1,5 @@
 from machine import Pin,SPI,PWM
-import framebuf
 import time
-import os
 
 LCD_DC   = 8
 LCD_CS   = 9
