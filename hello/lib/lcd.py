@@ -13,7 +13,7 @@ LCD_RST  = 15
 TP_CS    = 16
 TP_IRQ   = 17
 
-class LCD_3inch5(framebuf.FrameBuffer):
+class LCD_3inch5():
 
     def __init__(self):
         self.RED   =   0x07E0
@@ -21,10 +21,7 @@ class LCD_3inch5(framebuf.FrameBuffer):
         self.BLUE  =   0xf800
         self.WHITE =   0xffff
         self.BLACK =   0x0000
-        
-        self.width = 1
-        self.height = 1
-        
+                
         self.cs = Pin(LCD_CS,Pin.OUT)
         self.rst = Pin(LCD_RST,Pin.OUT)
         self.dc = Pin(LCD_DC,Pin.OUT)
@@ -38,8 +35,8 @@ class LCD_3inch5(framebuf.FrameBuffer):
         self.tp_cs(1)
         self.spi = SPI(1,60_000_000,sck=Pin(LCD_SCK),mosi=Pin(LCD_MOSI),miso=Pin(LCD_MISO))
               
-        self.buffer = bytearray(self.height * self.width * 2)
-        super().__init__(self.buffer, self.width, self.height, framebuf.RGB565)
+        self.buffer = bytearray(2) #self.height * self.width * 2)
+#        super().__init__(self.buffer, self.width, self.height, framebuf.RGB565)
         self.init_display()
 
         
@@ -61,12 +58,6 @@ class LCD_3inch5(framebuf.FrameBuffer):
         for b in buf:
             self.write_data(b)
         return
-        self.cs(1)
-        self.dc(1)
-        self.cs(0)
-        self.spi.write(bytearray(buf))
-        self.cs(1)
-
 
     def init_display(self):
         """Initialize dispaly"""  
@@ -131,7 +122,7 @@ class LCD_3inch5(framebuf.FrameBuffer):
         
         self.write_cmd(0x36)
         self.write_data(0x28)
-    def show_buffer(self, low_x, low_y, high_x, high_y, buffer=None):
+    def show_buffer(self, low_x, low_y, high_x, high_y, buffer):
         self.write_cmd(0x2A)
         self.write_data_buffer([low_x>>8, low_x&0xFF, high_x>>8, high_x&0xFF])
         
@@ -143,7 +134,7 @@ class LCD_3inch5(framebuf.FrameBuffer):
         self.cs(1)
         self.dc(1)
         self.cs(0)
-        self.spi.write(buffer or self.buffer)
+        self.spi.write(buffer)
         self.cs(1)
 
     def bl_ctrl(self,duty):
@@ -188,11 +179,11 @@ class LCD_3inch5(framebuf.FrameBuffer):
                 self.spi.write(bytearray([0XD0]))
                 Read_date = self.spi.read(2)
                 time.sleep_us(10)
-                X_Point=X_Point+(((Read_date[0]<<8)+Read_date[1])>>3)
+                Y_Point=Y_Point+(((Read_date[0]<<8)+Read_date[1])>>3)
                 
                 self.spi.write(bytearray([0X90]))
                 Read_date = self.spi.read(2)
-                Y_Point=Y_Point+(((Read_date[0]<<8)+Read_date[1])>>3)
+                X_Point=X_Point+(((Read_date[0]<<8)+Read_date[1])>>3)
 
             X_Point=X_Point/3
             Y_Point=Y_Point/3
