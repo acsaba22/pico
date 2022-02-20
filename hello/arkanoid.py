@@ -16,51 +16,41 @@ MIN_Y, MAX_Y = 5, 315
 class Ball(object):
     def __init__(self, lcd, player):
         self.ball_dir = [6, 6]
-        self.ball_pos = (240, 160)
-        self.buf = bytearray(10 * 10 * 2)
-        self.background = bytearray([0xff] * 10 * 10 * 2)
-        self.fb = framebuf.FrameBuffer(self.buf, 10, 10, framebuf.RGB565)
-        self.lcd = lcd
-        self.fb.fill(liblcd.RED)
+        
+        buf = bytearray(10 * 10 * 2)
+        fb = framebuf.FrameBuffer(buf, 10, 10, framebuf.RGB565)
+        fb.fill(liblcd.RED)
+        self.sprite = liblcd.Sprite(lcd, buf, 10, 10)
+        self.sprite.move(liblcd.Coord(240, 160))
+        self.sprite.show()
         self.player = player
 
-    def undraw_ball(self):
-        self.lcd.ShowBuffer(
-            self.ball_pos[0] - 5, self.ball_pos[0] + 4,
-            self.ball_pos[1] - 5, self.ball_pos[1] + 4, self.background)
-
-    def draw_ball(self):
-        self.lcd.ShowBuffer(
-            self.ball_pos[0] - 5, self.ball_pos[0] + 4,
-            self.ball_pos[1] - 5, self.ball_pos[1] + 4, self.buf)
-
-    def move_ball(self):
-        self.undraw_ball()
-
+    def move(self):
+        ball_pos = self.sprite.pos
         player_box = self.player.get_box()
-        new_ball_pos = (
-            self.ball_pos[0] + self.ball_dir[0], self.ball_pos[1] + self.ball_dir[1])
-        if new_ball_pos[0] < MIN_X or MAX_X < new_ball_pos[0]:
+        new_ball_pos = liblcd.Coord(
+            ball_pos.x + self.ball_dir[0], ball_pos.y + self.ball_dir[1])
+        if new_ball_pos.x < MIN_X or MAX_X < new_ball_pos.x:
             self.ball_dir[0] = -self.ball_dir[0]
         max_y = MAX_Y
-        if player_box.x1 <= self.ball_pos[0] < player_box.x2:
+        if player_box.x1 <= ball_pos.x < player_box.x2:
             if self.ball_dir[1] > 0:
-                max_y = self.player.get_box().y1
+                max_y = player_box.y1
             else:
-                max_y = self.player.get_box().y2
-        if new_ball_pos[1] < MIN_Y or max_y < new_ball_pos[1]:
+                max_y = player_box.y2
+        if new_ball_pos.y < MIN_Y or max_y < new_ball_pos.y:
             self.ball_dir[1] = -self.ball_dir[1]
-        self.ball_pos = (
-            self.ball_pos[0] + self.ball_dir[0], self.ball_pos[1] + self.ball_dir[1])
-        self.draw_ball()
+        self.sprite.move_by(self.ball_dir[0], self.ball_dir[1])
+
 
 class Player(object):
     PLAYER_WIDTH = 60
     MAX_SPEED = PLAYER_WIDTH // 4
 
     def __init__(self, lcd):
-        buf = bytearray(self.PLAYER_WIDTH * 10 * 2)
         self.target_pos = 240
+
+        buf = bytearray(self.PLAYER_WIDTH * 10 * 2)
         fb = framebuf.FrameBuffer(
             buf, self.PLAYER_WIDTH, 10, framebuf.RGB565)
         fb.fill(liblcd.BLACK)
@@ -91,7 +81,7 @@ def main():
     player = Player(screen)
     ball = Ball(screen, player)
     while True:
-        ball.move_ball()
+        ball.move()
         player.move()
 
         touch = screen.TouchGet()
