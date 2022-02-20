@@ -9,89 +9,79 @@ def init_board(lcd):
         lcd.ShowBuffer(0, 479, y, y, b)
 
 
-MIN_X, MAX_X = -235, 235
-MIN_Y, MAX_Y = -155, 155
+MIN_X, MAX_X = 5, 475
+MIN_Y, MAX_Y = 5, 315
 
 
 class Ball(object):
     def __init__(self, lcd, player):
         self.ball_dir = [6, 6]
-        self.ball_pos = (0, 0)
+        self.ball_pos = (240, 160)
         self.buf = bytearray(10 * 10 * 2)
         self.background = bytearray([0xff] * 10 * 10 * 2)
         self.fb = framebuf.FrameBuffer(self.buf, 10, 10, framebuf.RGB565)
         self.lcd = lcd
-        self.fb.fill(lcd.RED)
+        self.fb.fill(liblcd.RED)
         self.player = player
 
     def undraw_ball(self):
         self.lcd.ShowBuffer(
-            self.ball_pos[0] + 235, self.ball_pos[0] + 244,
-            self.ball_pos[1] + 155, self.ball_pos[1] + 164, self.background)
+            self.ball_pos[0] - 5, self.ball_pos[0] + 4,
+            self.ball_pos[1] - 5, self.ball_pos[1] + 4, self.background)
 
     def draw_ball(self):
         self.lcd.ShowBuffer(
-            self.ball_pos[0] + 235, self.ball_pos[0] + 244,
-            self.ball_pos[1] + 155, self.ball_pos[1] + 164, self.buf)
+            self.ball_pos[0] - 5, self.ball_pos[0] + 4,
+            self.ball_pos[1] - 5, self.ball_pos[1] + 4, self.buf)
 
     def move_ball(self):
         self.undraw_ball()
 
+        player_box = self.player.get_box()
         new_ball_pos = (
             self.ball_pos[0] + self.ball_dir[0], self.ball_pos[1] + self.ball_dir[1])
         if new_ball_pos[0] < MIN_X or MAX_X < new_ball_pos[0]:
             self.ball_dir[0] = -self.ball_dir[0]
         max_y = MAX_Y
-        if self.player.pos - 30 < self.ball_pos[0] < self.player.pos + 30:
-            max_y = self.player.PLAYER_Y - 152
+        if player_box.x1 <= self.ball_pos[0] < player_box.x2:
+            if self.ball_dir[1] > 0:
+                max_y = self.player.get_box().y1
+            else:
+                max_y = self.player.get_box().y2
         if new_ball_pos[1] < MIN_Y or max_y < new_ball_pos[1]:
             self.ball_dir[1] = -self.ball_dir[1]
         self.ball_pos = (
             self.ball_pos[0] + self.ball_dir[0], self.ball_pos[1] + self.ball_dir[1])
         self.draw_ball()
 
-
 class Player(object):
-    PLAYER_Y = 280
     PLAYER_WIDTH = 60
     MAX_SPEED = PLAYER_WIDTH // 4
 
     def __init__(self, lcd):
-        self._low_x = 240 - self.PLAYER_WIDTH // 2
-        self._high_x = self._low_x + self.PLAYER_WIDTH - 1
+        buf = bytearray(self.PLAYER_WIDTH * 10 * 2)
+        self.target_pos = 240
+        fb = framebuf.FrameBuffer(
+            buf, self.PLAYER_WIDTH, 10, framebuf.RGB565)
+        fb.fill(liblcd.BLACK)
+        self.sprite = liblcd.Sprite(lcd, buf, self.PLAYER_WIDTH, 10)
+        self.sprite.move(liblcd.Coord(240, 280))
+        self.sprite.show()
 
-        self.target_pos = 0
-        self.pos = 0
-        self.buf = bytearray(self.PLAYER_WIDTH * 10 * 2)
-        self.background = bytearray([0xff] * self.PLAYER_WIDTH * 10 * 2)
-        self.fb = framebuf.FrameBuffer(
-            self.buf, self.PLAYER_WIDTH, 10, framebuf.RGB565)
-        self.lcd = lcd
-        self.fb.fill(lcd.BLACK)
-        self.draw()
+    def get_pos(self):
+        return self.sprite.pos
 
-    def undraw(self):
-        self.lcd.ShowBuffer(
-            self.pos + self._low_x, self.pos + self._high_x,
-            self.PLAYER_Y, self.PLAYER_Y+9, self.background)
-
-    def draw(self):
-        self.lcd.ShowBuffer(
-            self.pos + self._low_x, self.pos + self._high_x,
-            self.PLAYER_Y, self.PLAYER_Y+9, self.fb)
+    def get_box(self):
+        return self.sprite.get_box()
 
     def move(self):
-        self.target_pos = min(205, max(-205, self.target_pos))
-        if self.pos == self.target_pos:
-            self.draw()
-            return
-        self.undraw()
-        if self.pos < self.target_pos:
-            delta = min(self.MAX_SPEED, self.target_pos-self.pos)
-        elif self.pos > self.target_pos:
-            delta = -min(self.MAX_SPEED, self.pos-self.target_pos)
-        self.pos += delta
-        self.draw()
+        delta = 0
+        if self.sprite.pos.x < self.target_pos:
+            delta = min(self.MAX_SPEED, self.target_pos-self.sprite.pos.x)
+        elif self.sprite.pos.x > self.target_pos:
+            delta = -min(self.MAX_SPEED, self.sprite.pos.x-self.target_pos)
+        self.sprite.move_by(delta, 0)
+
 
 
 def main():
@@ -106,7 +96,7 @@ def main():
 
         touch = screen.TouchGet()
         if touch:
-            player.target_pos = touch[0] - 240
+            player.target_pos = touch[0]
         time.sleep(0.03)
 
 

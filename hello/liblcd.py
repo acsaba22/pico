@@ -1,5 +1,6 @@
 from machine import Pin, SPI, PWM
 import time
+import struct
 
 LCD_DC = 8
 LCD_CS = 9
@@ -12,14 +13,18 @@ TP_CS = 16
 TP_IRQ = 17
 
 
+def color_to_bytes(color):
+    return struct.pack("H", color)
+
+RED = 0x07E0
+GREEN = 0x001f
+BLUE = 0xf800
+WHITE = 0xffff
+BLACK = 0x0000
+
 class LCD_3inch5():
 
     def __init__(self):
-        self.RED = 0x07E0
-        self.GREEN = 0x001f
-        self.BLUE = 0xf800
-        self.WHITE = 0xffff
-        self.BLACK = 0x0000
 
         self.cs = Pin(LCD_CS, Pin.OUT)
         self.rst = Pin(LCD_RST, Pin.OUT)
@@ -143,6 +148,9 @@ class LCD_3inch5():
         self.spi.write(buffer)
         self.cs(1)
 
+    def ShowBufferAtBox(self, box, buffer):
+        self.ShowBuffer(box.x1, box.x2, box.y1, box.y2, buffer)
+
     def ShowPoint(self, x, y, color):
         self.ShowBuffer(x, y, x, y, bytearray([color >> 8, color & 0xff]))
 
@@ -173,3 +181,91 @@ class LCD_3inch5():
             Y_Point = min(320, max(0, 320-int((Y_Point-430)*320/3270)))
             Result_list = [X_Point, Y_Point]
             return(Result_list)
+
+
+class Coord(object):
+    def __init__(self, x=0, y=0):
+        self.x = x
+        self.y = y
+        
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
+
+    def __repr__(self):
+        return "(%d,%d)" % (self.x, self.y)
+
+    def clip(self, box):
+        self.x = min(box.x2, max(box.x1, self.x))
+        self.y = min(box.y2, max(box.y1, self.y))
+
+
+class Box(object):
+    def __init__(self, x1, x2, y1, y2):
+        self.x1 = x1
+        self.x2 = x2
+        self.y1 = y1
+        self.y2 = y2
+        
+    def __repr__(self):
+        return "(%d,%d,%d,%d)" % (self.x1, self.x2, self.y1, self.y2)
+
+DEFAULT_BG_COLOR = WHITE
+
+class Sprite(object):
+    def __init__(self, lcd, image, width, height, background_color=None):
+        self.width = width
+        self.height = height
+
+        self.pos = Coord()
+        self.set_image(image)
+        self.background = bytearray(color_to_bytes(background_color or DEFAULT_BG_COLOR) * width * height)
+        self.lcd = lcd
+        self.visible = False
+        self._x_offset = - width//2
+        self._y_offset = - height//2
+        self._allowed_box = Box(-self._x_offset, 480 + self._x_offset, -self._y_offset, 320 + self._y_offset)
+
+    def set_image(self, image):
+        assert len(image) == self.width * self.height * 2
+        self.sprite = bytearray(image)
+
+    def get_box(self):
+        return Box(
+            self.pos.x + self._x_offset,
+            self.pos.x + self._x_offset + self.width-1,
+            self.pos.y + self._y_offset,
+            self.pos.y + self._y_offset + self.height-1)
+
+    def undraw(self):
+        if self.visible:
+            self.lcd.ShowBufferAtBox(
+                self.get_box(),
+                self.background)
+
+    def draw(self):
+        if self.visible:
+            self.lcd.ShowBufferAtBox(
+                self.get_box(),
+                self.sprite)
+
+    def show(self):
+        if not self.visible:
+            self.visible = True
+            self.draw()
+
+    def hide(self):
+        self.undraw()
+        self.visible = False
+
+    def move(self, target_pos):
+        target_pos.clip(self._allowed_box)
+        if self.pos == target_pos:
+            self.draw()
+            return
+        self.undraw()
+        self.pos = target_pos
+        self.draw()
+
+    def move_by(self, delta_x, delta_y):
+        target = Coord(self.pos.x+delta_x, self.pos.y+delta_y)
+        self.move(target)
