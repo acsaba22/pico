@@ -50,9 +50,9 @@ def draw_mandelbrot(lcd):
                 buffer[(x<<1)+(s<<1)] = c>>8
                 buffer[(x<<1)+(s<<1)+1] = c&0xFF
         for s in range(step):
-            lcd.show_buffer(0, y+s, 479, y+s, buffer)
+            lcd.ShowBuffer(0, 479, y+s, y+s, buffer)
         for s in range(step):
-            lcd.show_buffer(0, 319-y-s, 479, 319-y-s, buffer)
+            lcd.ShowBuffer(0, 479, 319-y-s, 319-y-s, buffer)
 
 def main():
     screen = liblcd.LCD_3inch5()

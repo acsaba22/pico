@@ -1,40 +1,41 @@
-from machine import Pin,SPI,PWM
+from machine import Pin, SPI, PWM
 import time
 
-LCD_DC   = 8
-LCD_CS   = 9
-LCD_SCK  = 10
+LCD_DC = 8
+LCD_CS = 9
+LCD_SCK = 10
 LCD_MOSI = 11
 LCD_MISO = 12
-LCD_BL   = 13
-LCD_RST  = 15
-TP_CS    = 16
-TP_IRQ   = 17
+LCD_BL = 13
+LCD_RST = 15
+TP_CS = 16
+TP_IRQ = 17
+
 
 class LCD_3inch5():
 
     def __init__(self):
-        self.RED   =   0x07E0
-        self.GREEN =   0x001f
-        self.BLUE  =   0xf800
-        self.WHITE =   0xffff
-        self.BLACK =   0x0000
+        self.RED = 0x07E0
+        self.GREEN = 0x001f
+        self.BLUE = 0xf800
+        self.WHITE = 0xffff
+        self.BLACK = 0x0000
 
-        self.cs = Pin(LCD_CS,Pin.OUT)
-        self.rst = Pin(LCD_RST,Pin.OUT)
-        self.dc = Pin(LCD_DC,Pin.OUT)
+        self.cs = Pin(LCD_CS, Pin.OUT)
+        self.rst = Pin(LCD_RST, Pin.OUT)
+        self.dc = Pin(LCD_DC, Pin.OUT)
 
-        self.tp_cs =Pin(TP_CS,Pin.OUT)
-        self.irq = Pin(TP_IRQ,Pin.IN)
+        self.tp_cs = Pin(TP_CS, Pin.OUT)
+        self.irq = Pin(TP_IRQ, Pin.IN)
 
         self.cs(1)
         self.dc(1)
         self.rst(1)
         self.tp_cs(1)
-        self.spi = SPI(1,60_000_000,sck=Pin(LCD_SCK),mosi=Pin(LCD_MOSI),miso=Pin(LCD_MISO))
+        self.spi = SPI(1, 60_000_000, sck=Pin(LCD_SCK),
+                       mosi=Pin(LCD_MOSI), miso=Pin(LCD_MISO))
 
-        self.init_display()
-
+        self.initDisplay()
 
     def write_cmd(self, cmd):
         self.cs(1)
@@ -55,7 +56,7 @@ class LCD_3inch5():
             self.write_data(b)
         return
 
-    def init_display(self):
+    def initDisplay(self):
         """Initialize dispaly"""
         self.rst(1)
         time.sleep_ms(5)
@@ -119,12 +120,20 @@ class LCD_3inch5():
         self.write_cmd(0x36)
         self.write_data(0x28)
 
-    def show_buffer(self, low_x, low_y, high_x, high_y, buffer):
+    def bl_ctrl(self, duty):
+        pwm = PWM(Pin(LCD_BL))
+        pwm.freq(1000)
+        if(duty >= 100):
+            pwm.duty_u16(65535)
+        else:
+            pwm.duty_u16(655*duty)
+
+    def ShowBuffer(self, x1, x2, y1, y2, buffer):
         self.write_cmd(0x2A)
-        self.write_data_buffer([low_x>>8, low_x&0xFF, high_x>>8, high_x&0xFF])
+        self.write_data_buffer([x1 >> 8, x1 & 0xFF, x2 >> 8, x2 & 0xFF])
 
         self.write_cmd(0x2B)
-        self.write_data_buffer([low_y>>8, low_y&0xFF, high_y>>8, high_y&0xFF])
+        self.write_data_buffer([y1 >> 8, y1 & 0xFF, y2 >> 8, y2 & 0xFF])
 
         self.write_cmd(0x2C)
 
@@ -134,39 +143,33 @@ class LCD_3inch5():
         self.spi.write(buffer)
         self.cs(1)
 
-    def bl_ctrl(self,duty):
-        pwm = PWM(Pin(LCD_BL))
-        pwm.freq(1000)
-        if(duty>=100):
-            pwm.duty_u16(65535)
-        else:
-            pwm.duty_u16(655*duty)
+    def ShowPoint(self, x, y, color):
+        self.ShowBuffer(x, y, x, y, bytearray([color >> 8, color & 0xff]))
 
-    def show_point(self,x,y,color):
-        self.show_buffer(x, y, x, y, bytearray([color>>8, color&0xff]));
-
-    def touch_get(self):
+    def TouchGet(self):
         if self.irq() == 0:
-            self.spi = SPI(1,5_000_000,sck=Pin(LCD_SCK),mosi=Pin(LCD_MOSI),miso=Pin(LCD_MISO))
+            self.spi = SPI(1, 5_000_000, sck=Pin(LCD_SCK),
+                           mosi=Pin(LCD_MOSI), miso=Pin(LCD_MISO))
             self.tp_cs(0)
             X_Point = 0
             Y_Point = 0
-            for i in range(0,3):
+            for i in range(0, 3):
                 self.spi.write(bytearray([0XD0]))
                 Read_date = self.spi.read(2)
                 time.sleep_us(10)
-                Y_Point=Y_Point+(((Read_date[0]<<8)+Read_date[1])>>3)
+                Y_Point = Y_Point+(((Read_date[0] << 8)+Read_date[1]) >> 3)
 
                 self.spi.write(bytearray([0X90]))
                 Read_date = self.spi.read(2)
-                X_Point=X_Point+(((Read_date[0]<<8)+Read_date[1])>>3)
+                X_Point = X_Point+(((Read_date[0] << 8)+Read_date[1]) >> 3)
 
-            X_Point=X_Point/3
-            Y_Point=Y_Point/3
+            X_Point = X_Point/3
+            Y_Point = Y_Point/3
 
             self.tp_cs(1)
-            self.spi = SPI(1,60_000_000,sck=Pin(LCD_SCK),mosi=Pin(LCD_MOSI),miso=Pin(LCD_MISO))
+            self.spi = SPI(1, 60_000_000, sck=Pin(LCD_SCK),
+                           mosi=Pin(LCD_MOSI), miso=Pin(LCD_MISO))
             X_Point = min(480, max(0, int((X_Point-430)*480/3270)))
             Y_Point = min(320, max(0, 320-int((Y_Point-430)*320/3270)))
-            Result_list = [X_Point,Y_Point]
+            Result_list = [X_Point, Y_Point]
             return(Result_list)
