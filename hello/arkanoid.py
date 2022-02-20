@@ -1,4 +1,4 @@
-import lcd
+import liblcd
 import time
 import framebuf
 
@@ -20,18 +20,18 @@ class Ball(object):
         self.lcd = lcd
         self.fb.fill(lcd.RED)
         self.player = player
-        
+
     def undraw_ball(self):
         self.lcd.show_buffer(self.ball_pos[0] + 235, self.ball_pos[1] + 155,
                              self.ball_pos[0] + 244, self.ball_pos[1] + 164, self.background)
-        
+
     def draw_ball(self):
         self.lcd.show_buffer(self.ball_pos[0] + 235, self.ball_pos[1] + 155,
                              self.ball_pos[0] + 244, self.ball_pos[1] + 164, self.buf)
 
     def move_ball(self):
         self.undraw_ball()
-        
+
         new_ball_pos = (self.ball_pos[0] + self.ball_dir[0], self.ball_pos[1] + self.ball_dir[1])
         if new_ball_pos[0] < MIN_X or MAX_X < new_ball_pos[0]:
             self.ball_dir[0] = -self.ball_dir[0]
@@ -40,9 +40,9 @@ class Ball(object):
             max_y = self.player.PLAYER_Y - 152
         if new_ball_pos[1] < MIN_Y or max_y < new_ball_pos[1]:
             self.ball_dir[1] = -self.ball_dir[1]
-        self.ball_pos = (self.ball_pos[0] + self.ball_dir[0], self.ball_pos[1] + self.ball_dir[1])        
+        self.ball_pos = (self.ball_pos[0] + self.ball_dir[0], self.ball_pos[1] + self.ball_dir[1])
         self.draw_ball()
-    
+
 class Player(object):
     PLAYER_Y = 280
     PLAYER_WIDTH = 60
@@ -59,11 +59,11 @@ class Player(object):
         self.lcd = lcd
         self.fb.fill(lcd.BLACK)
         self.draw()
-        
+
     def undraw(self):
         self.lcd.show_buffer(self.pos + self._low_x, self.PLAYER_Y,
                              self.pos + self._high_x, self.PLAYER_Y+9, self.background)
-        
+
     def draw(self):
         self.lcd.show_buffer(self.pos + self._low_x, self.PLAYER_Y,
                              self.pos + self._high_x, self.PLAYER_Y+9, self.fb)
@@ -82,7 +82,7 @@ class Player(object):
         self.draw()
 
 def main():
-    screen = lcd.LCD_3inch5()
+    screen = liblcd.LCD_3inch5()
     screen.bl_ctrl(100)
     init_board(screen)
     player = Player(screen)
@@ -90,7 +90,7 @@ def main():
     while True:
         ball.move_ball()
         player.move()
-        
+
         touch = screen.touch_get()
         if touch:
             player.target_pos = touch[0] - 240

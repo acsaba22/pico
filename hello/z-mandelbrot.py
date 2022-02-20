@@ -1,7 +1,4 @@
-import sys
-if "/lib" not in sys.path:
-    sys.path.append("/lib")
-import lcd
+import liblcd
 
 import math
 
@@ -58,11 +55,9 @@ def draw_mandelbrot(lcd):
             lcd.show_buffer(0, 319-y-s, 479, 319-y-s, buffer)
 
 def main():
-    screen = lcd.LCD_3inch5()
+    screen = liblcd.LCD_3inch5()
     screen.bl_ctrl(100)
     draw_mandelbrot(screen)
-    while True:
-        time.sleep(0.1)
 
 if __name__=='__main__':
     main()
