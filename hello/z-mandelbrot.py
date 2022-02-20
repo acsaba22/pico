@@ -56,7 +56,7 @@ def draw_mandelbrot(lcd):
 
 def main():
     screen = liblcd.LCD_3inch5()
-    screen.bl_ctrl(100)
+    screen.BackLight(100)
     draw_mandelbrot(screen)
 
 if __name__=='__main__':

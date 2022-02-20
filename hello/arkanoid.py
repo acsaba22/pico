@@ -96,7 +96,7 @@ class Player(object):
 
 def main():
     screen = liblcd.LCD_3inch5()
-    screen.bl_ctrl(100)
+    screen.BackLight(100)
     init_board(screen)
     player = Player(screen)
     ball = Ball(screen, player)

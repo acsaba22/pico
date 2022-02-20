@@ -120,7 +120,7 @@ class LCD_3inch5():
         self.write_cmd(0x36)
         self.write_data(0x28)
 
-    def bl_ctrl(self, duty):
+    def BackLight(self, duty):
         pwm = PWM(Pin(LCD_BL))
         pwm.freq(1000)
         if(duty >= 100):
