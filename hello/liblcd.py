@@ -1,6 +1,7 @@
 from machine import Pin, SPI, PWM
 import time
 import struct
+import framebuf
 
 LCD_DC = 8
 LCD_CS = 9
@@ -185,7 +186,7 @@ class LCD_3inch5():
 
 def clip_coord(coord, box):
     return Coord(
-        min(box.x2, max(box.x1, coord.x))
+        min(box.x2, max(box.x1, coord.x)),
         min(box.y2, max(box.y1, coord.y)))
 
 
@@ -232,6 +233,9 @@ class Box(object):
 
 DEFAULT_BG_COLOR = WHITE
 
+def get_image_bytesize(w, h):
+    return w*h*2
+
 class Sprite(object):
     def __init__(self, lcd, image, width, height, background_color=None):
         self.width = width
@@ -247,8 +251,18 @@ class Sprite(object):
         self._allowed_box = Box(-self._x_offset, 480 + self._x_offset, -self._y_offset, 320 + self._y_offset)
 
     def set_image(self, image):
-        assert len(image) == self.width * self.height * 2
-        self.sprite = bytearray(image)
+        expected_size = get_image_bytesize(self.width, self.height)
+        if image:
+            assert len(image) == expected_size
+            self.sprite = bytearray(image)
+        else:
+            self.sprite = bytearray(expected_size)
+
+    def get_buffer(self):
+        return self.sprite
+
+    def get_framebuffer(self):
+        return framebuf.FrameBuffer(self.sprite, self.width, self.height, framebuf.RGB565)
 
     def get_box(self):
         return Box(
