@@ -330,8 +330,8 @@ def DrawRec(x1, x2, y1, y2, v11, v12, v21, v22):
     DrawRec(xo, x2, yo, y2, voo, vo2, v2o, v22)
 
 
-WWW = 480//2
-HHH = 320//2
+WWW = 480
+HHH = 320
 
 
 def DrawAll():
