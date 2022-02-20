@@ -183,6 +183,12 @@ class LCD_3inch5():
             return(Result_list)
 
 
+def clip_coord(coord, box):
+    return Coord(
+        min(box.x2, max(box.x1, coord.x))
+        min(box.y2, max(box.y1, coord.y)))
+
+
 class Coord(object):
     def __init__(self, x=0, y=0):
         self.x = x
@@ -198,7 +204,6 @@ class Coord(object):
         self.x = min(box.x2, max(box.x1, self.x))
         self.y = min(box.y2, max(box.y1, self.y))
 
-
 class Box(object):
     def __init__(self, x1, x2, y1, y2):
         self.x1 = x1
@@ -208,6 +213,22 @@ class Box(object):
         
     def __repr__(self):
         return "(%d,%d,%d,%d)" % (self.x1, self.x2, self.y1, self.y2)
+    
+    def __contains__(self, point):
+        clipped_point = clip_coord(point, self)
+        return clipped_point == point
+
+    def __add__(self, other):
+        return Box(min(x1, other.x1), max(x2, other.x2),
+                   min(y1, other.y1), max(y2, other.y2))
+        
+    def __mul__(self, other):
+        return Box(max(x1, other.x1), min(x2, other.x2),
+                   max(y1, other.y1), min(y2, other.y2))
+
+    def is_valid(self):
+        return (self.x1 <= self.x2 and self.y1 <= self.y2)
+
 
 DEFAULT_BG_COLOR = WHITE
 
