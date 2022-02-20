@@ -237,26 +237,19 @@ def get_image_bytesize(w, h):
     return w*h*2
 
 class Sprite(object):
-    def __init__(self, lcd, image, width, height, background_color=None):
+    def __init__(self, lcd, width, height, background_color=None):
         self.width = width
         self.height = height
 
         self.pos = Coord()
-        self.set_image(image)
+        expected_size = get_image_bytesize(self.width, self.height)
+        self.sprite = bytearray(expected_size)
         self.background = bytearray(color_to_bytes(background_color or DEFAULT_BG_COLOR) * width * height)
         self.lcd = lcd
         self.visible = False
         self._x_offset = - width//2
         self._y_offset = - height//2
         self._allowed_box = Box(-self._x_offset, 480 + self._x_offset, -self._y_offset, 320 + self._y_offset)
-
-    def set_image(self, image):
-        expected_size = get_image_bytesize(self.width, self.height)
-        if image:
-            assert len(image) == expected_size
-            self.sprite = bytearray(image)
-        else:
-            self.sprite = bytearray(expected_size)
 
     def get_buffer(self):
         return self.sprite

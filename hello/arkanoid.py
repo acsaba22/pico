@@ -16,10 +16,8 @@ MIN_Y, MAX_Y = 5, 315
 class Ball(object):
     def __init__(self, lcd, player):
         self.player = player
-        buf = bytearray(10 * 10 * 2)
-        fb = framebuf.FrameBuffer(buf, 10, 10, framebuf.RGB565)
-        fb.fill(liblcd.RED)
-        self.sprite = liblcd.Sprite(lcd, buf, 10, 10)
+        self.sprite = liblcd.Sprite(lcd, 10, 10)
+        self.sprite.get_framebuffer().fill(liblcd.RED)
         self.ball_dir = [6, 6]
     
     def reset(self):
@@ -58,11 +56,8 @@ class Player(object):
     MAX_SPEED = PLAYER_WIDTH // 4
 
     def __init__(self, lcd):
-        buf = bytearray(self.PLAYER_WIDTH * 10 * 2)
-        fb = framebuf.FrameBuffer(
-            buf, self.PLAYER_WIDTH, 10, framebuf.RGB565)
-        fb.fill(liblcd.BLACK)
-        self.sprite = liblcd.Sprite(lcd, buf, self.PLAYER_WIDTH, 10)
+        self.sprite = liblcd.Sprite(lcd, self.PLAYER_WIDTH, 10)
+        self.sprite.get_framebuffer().fill(liblcd.BLACK)
         self.target_pos = 240
 
     def reset(self):
@@ -90,7 +85,7 @@ class Player(object):
 class Score(object):
 
     def __init__(self, lcd):
-        self.sprite = liblcd.Sprite(lcd, None, 96, 8)
+        self.sprite = liblcd.Sprite(lcd, 96, 8)
         self.sprite.move(liblcd.Coord(10, 10))
         self.fb = self.sprite.get_framebuffer()
         self.score = 0
@@ -115,7 +110,7 @@ class Score(object):
 class Text(object):
 
     def __init__(self, lcd):
-        self.sprite = liblcd.Sprite(lcd, None, 160, 40)
+        self.sprite = liblcd.Sprite(lcd, 160, 40)
         self.fb = self.sprite.get_framebuffer()
         self.fb.fill(liblcd.RED)
         self.sprite.move(liblcd.Coord(240, 150))
