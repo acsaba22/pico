@@ -5,24 +5,28 @@ import time
 piros = Pin(0, Pin.OUT)
 zold = Pin(1, Pin.OUT)
 kek = Pin(2, Pin.OUT)
+piros.on()
 zold.on()
 kek.on()
 piros.on()
 
-#time.sleep(3)
+time.sleep(2)
+piros.off()
 
-piros.on()
-zold.on()
-kek.on()
+time.sleep(2)
 
-ido = 1
 while True:
-                piros.on()
-                kek.off()
-                time.sleep(ido)
-                kek.on()
-                piros.off()
-                time.sleep(ido)
-                ido = ido - 0.02
-                
-                
+    veg_ido = time.time() + 3
+    while time.time() < veg_ido:
+                    piros.off()
+                    time.sleep(0.001)
+                    piros.on()
+                    time.sleep(0.001)
+
+    veg_ido = time.time() + 3
+    while time.time() < veg_ido:
+                    piros.off()
+                    time.sleep(0.001)
+                    piros.on()
+                    time.sleep(0.001)
+
