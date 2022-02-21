@@ -67,11 +67,12 @@ class Button(object):
         self.draw()
         
     def do(self, touch):
-        if touch:
+        if touch != None:
             c = liblcd.Coord(touch[0], touch[1])
             if c in self.box:
                 self._setState(1)
-            else:
+            elif self._state == 1:
+                print ("left %s" % (c, ))
                 self._setState(0)
         elif self._state == 1:
             self._setState(0)
@@ -80,7 +81,7 @@ class Button(object):
         return False
     
     def doPressed(self):
-        print (self.text)
+        pass
    
 class Button3D(Button):
     def __init__(self, screen, box,
@@ -111,18 +112,49 @@ class Button3D(Button):
             self._drawBottomRightEdge(fb, self.color_edge_dark)
             self._drawUpLeftEdge(fb, self.color_edge_light)   
 
+class Counter(object):
+
+    def __init__(self, lcd):
+        self.sprite = liblcd.Sprite(lcd, 96, 8)
+        self.sprite.move(liblcd.Coord(10, 10))
+        self.fb = self.sprite.getFramebuffer()
+        self.reset()
+
+    def reset(self):
+        self.value = 0
+        self.update()
+        self.sprite.show()
+
+    def update(self):
+        self.fb.fill(liblcd.WHITE)
+        self.fb.text("counter: %d" % (self.value, ), 0, 0, liblcd.BLACK)
+        self.sprite.draw()
+
+    def increase(self, by=1):
+        self.value += by
+        self.update()
+
+    def hide(self):
+        self.sprite.hide()
+
+
 def main():
     screen = liblcd.LCD_3inch5()
     screen.BackLight(100)
     screen.Clear()
     button = Button(screen, liblcd.Box(100, 200, 100, 150))
-    button.setText("Press me 1")
+    button.setText("UP")
     button2 = Button3D(screen, liblcd.Box(100, 200, 200, 250))
-    button2.setText("Press me 2")
+    button2.setText("DOWN")
+    counter = Counter(screen)
     while True:
         t = screen.TouchGet()
-        button.do(t)
-        button2.do(t)
+        if button.do(t):
+            print ("up")
+            counter.increase(1)
+        if button2.do(t):
+            print ("down")
+            counter.increase(-1)
 
 
 if __name__ == '__main__':
