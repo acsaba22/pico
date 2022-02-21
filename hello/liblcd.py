@@ -254,6 +254,10 @@ class Sprite(object):
     def getBuffer(self):
         return self.sprite
 
+    def setBuffer(self, buf):
+        assert len(buf) == getImageBytesize(self.width, self.height)
+        self.sprite = buf
+    
     def getFramebuffer(self):
         return framebuf.FrameBuffer(self.sprite, self.width, self.height, framebuf.RGB565)
 
