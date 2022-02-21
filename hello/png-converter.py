@@ -1,8 +1,9 @@
 
 import pygame
 
-image = pygame.image.load("data/disc-red.png")
-out = open("data/disc-red.txt", "w")
+f = 'data/tree'
+image = pygame.image.load(f+".png")
+out = open(f+".txt", "w")
 buffer = bytearray((image.get_height()) * image.get_width() * 2)
 i = 0
 
