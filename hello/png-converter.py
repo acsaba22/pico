@@ -1,7 +1,7 @@
 
 import pygame
 
-f = 'data/tree'
+f = 'data/tree2'
 image = pygame.image.load(f+".png")
 out = open(f+".txt", "w")
 buffer = bytearray((image.get_height()) * image.get_width() * 2)
