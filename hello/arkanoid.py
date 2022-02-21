@@ -17,21 +17,21 @@ class Ball(object):
     def __init__(self, lcd, player):
         self.player = player
         self.sprite = liblcd.Sprite(lcd, 10, 10)
-        self.sprite.get_framebuffer().fill(liblcd.RED)
+        self.sprite.getFramebuffer().fill(liblcd.RED)
         self.ball_dir = [6, 6]
-    
+
     def reset(self):
         self.sprite.move(liblcd.Coord(240, 10))
         self.sprite.show()
         self.ball_dir = [6, 6]
-        
+
 
     def is_visible(self):
         return self.sprite.visible
-    
+
     def move(self):
         ball_pos = self.sprite.pos
-        player_box = self.player.get_box()
+        player_box = self.player.getBox()
         new_ball_pos = liblcd.Coord(
             ball_pos.x + self.ball_dir[0], ball_pos.y + self.ball_dir[1])
         if new_ball_pos.x < MIN_X or MAX_X < new_ball_pos.x:
@@ -48,7 +48,7 @@ class Ball(object):
                 max_y = player_box.y2
             if ball_pos.y < max_y < new_ball_pos.y:
                 self.ball_dir[1] = -self.ball_dir[1]
-        self.sprite.move_by(self.ball_dir[0], self.ball_dir[1])
+        self.sprite.moveBy(self.ball_dir[0], self.ball_dir[1])
 
 
 class Player(object):
@@ -57,7 +57,7 @@ class Player(object):
 
     def __init__(self, lcd):
         self.sprite = liblcd.Sprite(lcd, self.PLAYER_WIDTH, 10)
-        self.sprite.get_framebuffer().fill(liblcd.BLACK)
+        self.sprite.getFramebuffer().fill(liblcd.BLACK)
         self.target_pos = 240
 
     def reset(self):
@@ -68,38 +68,38 @@ class Player(object):
     def get_pos(self):
         return self.sprite.pos
 
-    def get_box(self):
-        return self.sprite.get_box()
+    def getBox(self):
+        return self.sprite.getBox()
 
     def hide(self):
         self.sprite.hide()
-        
+
     def move(self):
         delta = 0
         if self.sprite.pos.x < self.target_pos:
             delta = min(self.MAX_SPEED, self.target_pos-self.sprite.pos.x)
         elif self.sprite.pos.x > self.target_pos:
             delta = -min(self.MAX_SPEED, self.sprite.pos.x-self.target_pos)
-        self.sprite.move_by(delta, 0)
+        self.sprite.moveBy(delta, 0)
 
 class Score(object):
 
     def __init__(self, lcd):
         self.sprite = liblcd.Sprite(lcd, 96, 8)
         self.sprite.move(liblcd.Coord(10, 10))
-        self.fb = self.sprite.get_framebuffer()
+        self.fb = self.sprite.getFramebuffer()
         self.score = 0
-        
+
     def reset(self):
         self.score = 0
         self.update()
         self.sprite.show()
-        
+
     def update(self):
         self.fb.fill(liblcd.WHITE)
         self.fb.text("score: %d" % (self.score, ), 0, 0, liblcd.BLACK)
         self.sprite.draw()
-        
+
     def increase(self):
         self.score += 1
         self.update()
@@ -111,7 +111,7 @@ class Text(object):
 
     def __init__(self, lcd):
         self.sprite = liblcd.Sprite(lcd, 160, 40)
-        self.fb = self.sprite.get_framebuffer()
+        self.fb = self.sprite.getFramebuffer()
         self.fb.fill(liblcd.RED)
         self.sprite.move(liblcd.Coord(240, 150))
 
@@ -127,7 +127,7 @@ class Text(object):
 
     def show(self):
         self.sprite.show()
-        
+
     def hide(self):
         self.sprite.hide()
 

@@ -194,7 +194,7 @@ class Coord(object):
     def __init__(self, x=0, y=0):
         self.x = x
         self.y = y
-        
+
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
 
@@ -211,21 +211,21 @@ class Box(object):
         self.x2 = x2
         self.y1 = y1
         self.y2 = y2
-        
+
     def __repr__(self):
         return "(%d,%d,%d,%d)" % (self.x1, self.x2, self.y1, self.y2)
-    
+
     def __contains__(self, point):
         clipped_point = clip_coord(point, self)
         return clipped_point == point
 
     def __add__(self, other):
-        return Box(min(x1, other.x1), max(x2, other.x2),
-                   min(y1, other.y1), max(y2, other.y2))
-        
+        return Box(min(self.x1, other.x1), max(self.x2, other.x2),
+                   min(self.y1, other.y1), max(self.y2, other.y2))
+
     def __mul__(self, other):
-        return Box(max(x1, other.x1), min(x2, other.x2),
-                   max(y1, other.y1), min(y2, other.y2))
+        return Box(max(self.x1, other.x1), min(self.x2, other.x2),
+                   max(self.y1, other.y1), min(self.y2, other.y2))
 
     def is_valid(self):
         return (self.x1 <= self.x2 and self.y1 <= self.y2)
@@ -233,7 +233,7 @@ class Box(object):
 
 DEFAULT_BG_COLOR = WHITE
 
-def get_image_bytesize(w, h):
+def getImageBytesize(w, h):
     return w*h*2
 
 class Sprite(object):
@@ -242,7 +242,7 @@ class Sprite(object):
         self.height = height
 
         self.pos = Coord()
-        expected_size = get_image_bytesize(self.width, self.height)
+        expected_size = getImageBytesize(self.width, self.height)
         self.sprite = bytearray(expected_size)
         self.background = bytearray(color_to_bytes(background_color or DEFAULT_BG_COLOR) * width * height)
         self.lcd = lcd
@@ -251,13 +251,13 @@ class Sprite(object):
         self._y_offset = - height//2
         self._allowed_box = Box(-self._x_offset, 480 + self._x_offset, -self._y_offset, 320 + self._y_offset)
 
-    def get_buffer(self):
+    def getBuffer(self):
         return self.sprite
 
-    def get_framebuffer(self):
+    def getFramebuffer(self):
         return framebuf.FrameBuffer(self.sprite, self.width, self.height, framebuf.RGB565)
 
-    def get_box(self):
+    def getBox(self):
         return Box(
             self.pos.x + self._x_offset,
             self.pos.x + self._x_offset + self.width-1,
@@ -267,13 +267,13 @@ class Sprite(object):
     def undraw(self):
         if self.visible:
             self.lcd.ShowBufferAtBox(
-                self.get_box(),
+                self.getBox(),
                 self.background)
 
     def draw(self):
         if self.visible:
             self.lcd.ShowBufferAtBox(
-                self.get_box(),
+                self.getBox(),
                 self.sprite)
 
     def show(self):
@@ -294,6 +294,6 @@ class Sprite(object):
         self.pos = target_pos
         self.draw()
 
-    def move_by(self, delta_x, delta_y):
+    def moveBy(self, delta_x, delta_y):
         target = Coord(self.pos.x+delta_x, self.pos.y+delta_y)
         self.move(target)
