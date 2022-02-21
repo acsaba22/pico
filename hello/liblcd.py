@@ -228,7 +228,10 @@ class Box(object):
                    max(self.y1, other.y1), min(self.y2, other.y2))
 
     def is_valid(self):
-        return (self.x1 <= self.x2 and self.y1 <= self.y2)
+        return (self.x1 <= self.x2) and (self.y1 <= self.y2)
+    
+    def min_size(self):
+        return min(self.x2-self.x1, self.y2-self.y1)
 
 
 DEFAULT_BG_COLOR = WHITE
@@ -289,15 +292,16 @@ class Sprite(object):
         self.undraw()
         self.visible = False
 
-    def move(self, target_pos):
+    def move(self, target_pos, do_undraw=True):
         target_pos.clip(self._allowed_box)
         if self.pos == target_pos:
             self.draw()
             return
-        self.undraw()
+        if do_undraw:
+            self.undraw()
         self.pos = target_pos
         self.draw()
 
-    def moveBy(self, delta_x, delta_y):
+    def moveBy(self, delta_x, delta_y, do_undraw=True):
         target = Coord(self.pos.x+delta_x, self.pos.y+delta_y)
-        self.move(target)
+        self.move(target, do_undraw)
