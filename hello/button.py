@@ -151,7 +151,6 @@ def main():
     counter = Counter(screen)
     touch = liblcd.SmartTouch(screen)
     while True:
-        touch.do()
         t = touch.get()
         if button.do(t):
             print ("up")

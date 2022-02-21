@@ -211,11 +211,13 @@ class SmartTouch(object):
         self.reads = []
         self._last_pos = None
         self._read()
-        
+       
+    # This needs to be called frequently, if .get() is not called often.
     def do(self):
         self._read()
         
     def get(self):
+        self._read()
         return self._last_pos
     
     def _read(self):
