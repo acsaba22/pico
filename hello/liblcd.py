@@ -205,6 +205,39 @@ class LCD_3inch5():
             return(Result_list)
 
 
+class SmartTouch(object):
+    def __init__(self, screen):
+        self.screen = screen
+        self.reads = []
+        self._last_pos = None
+        self._read()
+        
+    def do(self):
+        self._read()
+        
+    def get(self):
+        return self._last_pos
+    
+    def _read(self):
+        def dist(p1, p2):
+            return abs(p1[0]-p2[0])+abs(p1[1]-p2[1])
+        new_time, new_pos = time.ticks_ms(), self.screen.TouchGet()
+        new_value = new_time, new_pos
+        has_value = 0
+        self.reads = [v for v in self.reads if time.ticks_diff(new_time, v[0]) < 200 and v[1] is not None]
+        if len(self.reads) < 3:
+            self._last_pos = None
+        elif new_pos:
+            c = 0
+            for v in self.reads:
+                if v[1] and dist(v[1], new_pos) < 20:
+                    c += 1
+            if c > len(self.reads)//3:
+                self._last_pos = new_pos
+        if new_pos:
+            self.reads.append(new_value)
+
+
 def clip_coord(coord, box):
     return Coord(
         min(box.x2, max(box.x1, coord.x)),
