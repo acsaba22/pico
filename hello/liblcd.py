@@ -23,6 +23,21 @@ BLUE = 0xf800
 WHITE = 0xffff
 BLACK = 0x0000
 
+
+def RGB(r, g, b):
+    color = 0
+    color |= (r >> 3)
+    color <<= 6;
+    color |= (g >> 2)
+    color <<= 5;
+    color |= (b >> 3)
+    return color
+
+def RGB_FB(r, g, b):
+    color = RGB(r, g, b)
+    return (color>>8)+((color&0xFF) << 8)
+
+  
 class LCD_3inch5():
 
     def __init__(self):
@@ -154,6 +169,12 @@ class LCD_3inch5():
 
     def ShowPoint(self, x, y, color):
         self.ShowBuffer(int(x), int(x), int(y), int(y), bytearray(color_to_bytes(color)))
+        
+    def Clear(self, color = WHITE):
+        b = bytearray(color_to_bytes(color) * 480 * 2 *4)
+        for y in range(0, 320, 4):
+            self.ShowBuffer(0, 479, y, y+3, b)
+        
 
     def TouchGet(self):
         if self.irq() == 0:
@@ -232,6 +253,14 @@ class Box(object):
     
     def min_size(self):
         return min(self.x2-self.x1, self.y2-self.y1)
+
+    @property
+    def width(self):
+        return self.x2-self.x1+1
+
+    @property
+    def height(self):
+        return self.y2-self.y1+1
 
 
 DEFAULT_BG_COLOR = WHITE
