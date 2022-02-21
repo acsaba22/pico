@@ -1,20 +1,22 @@
 import liblcd
-import time
 import framebuf
-import math
 
 class Button(object):
-    COLOR = liblcd.RGB_FB(0, 127, 0)
-    PRESSED_COLOR = liblcd.RGB_FB(0, 160, 0)
-    TEXT_COLOR = liblcd.RGB_FB(0, 255, 0)
-    LIGHT_COLOR = liblcd.RGB_FB(255, 0, 0)
-    DARK_COLOR = liblcd.RGB_FB(0, 0, 255)
-    
-    def __init__(self, screen, box):
+   
+    def __init__(self, screen, box,
+                 text="",
+                 color_surface=liblcd.RGB_FB(128, 128, 128),
+                 color_surface_pressed=liblcd.RGB_FB(160, 160, 160),
+                 color_text=liblcd.RGB_FB(0, 0, 0)):
+        self._state = 0
+
         self.screen = screen
         self.box = liblcd.Box(int(box.x1), int(box.x2), int(box.y1), int(box.y2))
-        self.text = ""
-        self._state = 0
+        
+        self.text = text
+        self.color_surface = color_surface
+        self.color_surface_pressed = color_surface_pressed
+        self.color_text = color_text
         self.draw()
         
     def draw(self):
@@ -31,32 +33,30 @@ class Button(object):
         buf = bytearray(self.box.width * self.box.height * 2)
         fb = framebuf.FrameBuffer(buf, self.box.width, self.box.height, framebuf.RGB565)
         return fb, buf
-    
-    def _drawUpLeftEdge(self, fb, color):
-        pass
-    
-    def _drawBottomRightEdge(self, fb, color):
+
+    def _drawEdge(self, fb):
         pass
 
-    def _drawSurface(self, fb, color):
-        fb.fill_rect(0, 0, self.box.width, self.box.height, color)
+    def _drawSurface(self, fb):
+        if self._state:
+            fb.fill_rect(0, 0, self.box.width, self.box.height, self.color_surface)
+        else:
+            fb.fill_rect(0, 0, self.box.width, self.box.height, self.color_surface_pressed)            
 
-    def _drawNormal(self):        
+    def _drawNormal(self):
         fb, buf = self._getFB()
-        self._drawSurface(fb, self.COLOR)
-        self._drawUpLeftEdge(fb, self.LIGHT_COLOR)
-        self._drawBottomRightEdge(fb, self.DARK_COLOR)
+        self._drawSurface(fb)
+        self._drawEdge(fb)
         if self.text:
-            fb.text(self.text, max(0, self.box.width//2 - len(self.text)*4), self.box.height // 2 - 4, self.TEXT_COLOR)
+            fb.text(self.text, max(0, self.box.width//2 - len(self.text)*4), self.box.height // 2 - 4, self.color_text)
         self.screen.ShowBufferAtBox(self.box, buf)
 
     def _drawPressed(self):
         fb, buf = self._getFB()
-        self._drawSurface(fb, self.PRESSED_COLOR)
-        self._drawUpLeftEdge(fb, self.DARK_COLOR)
-        self._drawBottomRightEdge(fb, self.LIGHT_COLOR)
+        self._drawSurface(fb)
+        self._drawEdge(fb)
         if self.text:
-            fb.text(self.text, max(0, self.box.width//2 - len(self.text)*4)+2, self.box.height // 2 - 2, self.TEXT_COLOR)
+            fb.text(self.text, max(0, self.box.width//2 - len(self.text)*4)+2, self.box.height // 2 - 2, self.color_text)
         self.screen.ShowBufferAtBox(self.box, buf)
         
     def _setState(self, new_state):
@@ -83,8 +83,13 @@ class Button(object):
         print (self.text)
    
 class Button3D(Button):
-    def __init__(self, screen, box):
-        Button.__init__(self, screen, box)
+    def __init__(self, screen, box,
+                 color_edge_dark=liblcd.RGB_FB(64, 64, 64),
+                 color_edge_light=liblcd.RGB_FB(192, 192, 192),
+                 **kwargs):
+        self.color_edge_dark = color_edge_dark
+        self.color_edge_light = color_edge_light
+        Button.__init__(self, screen, box, kwargs)
         
     def _drawUpLeftEdge(self, fb, color):
         fb.hline(0, 0, self.box.width-1, color)
@@ -97,10 +102,14 @@ class Button3D(Button):
         fb.hline(0, self.box.height-1, self.box.width-1, color)
         fb.vline(self.box.width-2, 1, self.box.height-2, color)
         fb.vline(self.box.width-1, 0, self.box.height-1, color)
-
-    def _drawSurface(self, fb, color):
-        fb.fill_rect(2, 2, self.box.width - 4, self.box.height - 4, color)
-   
+        
+    def _drawEdge(self, fb):
+        if self._state:
+            self._drawBottomRightEdge(fb, self.color_edge_light)
+            self._drawUpLeftEdge(fb, self.color_edge_dark)
+        else:
+            self._drawBottomRightEdge(fb, self.color_edge_dark)
+            self._drawUpLeftEdge(fb, self.color_edge_light)   
 
 def main():
     screen = liblcd.LCD_3inch5()
