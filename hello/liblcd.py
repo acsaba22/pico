@@ -153,7 +153,7 @@ class LCD_3inch5():
         self.ShowBuffer(box.x1, box.x2, box.y1, box.y2, buffer)
 
     def ShowPoint(self, x, y, color):
-        self.ShowBuffer(int(x), int(x), int(y), int(y), bytearray([color >> 8, color & 0xff]))
+        self.ShowBuffer(int(x), int(x), int(y), int(y), bytearray(color_to_bytes(color)))
 
     def TouchGet(self):
         if self.irq() == 0:
