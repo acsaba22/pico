@@ -13,7 +13,6 @@ LCD_RST = 15
 TP_CS = 16
 TP_IRQ = 17
 
-
 def color_to_bytes(color):
     return struct.pack("H", color)
 
@@ -37,7 +36,7 @@ def RGB_FB(r, g, b):
     color = RGB(r, g, b)
     return (color>>8)+((color&0xFF) << 8)
 
-  
+
 class LCD_3inch5():
 
     def __init__(self):
@@ -169,12 +168,12 @@ class LCD_3inch5():
 
     def ShowPoint(self, x, y, color):
         self.ShowBuffer(int(x), int(x), int(y), int(y), bytearray(color_to_bytes(color)))
-        
+
     def Clear(self, color = WHITE):
         b = bytearray(color_to_bytes(color) * 480 * 2 *4)
         for y in range(0, 320, 4):
             self.ShowBuffer(0, 479, y, y+3, b)
-        
+
 
     def TouchGet(self):
         if self.irq() == 0:
@@ -206,20 +205,25 @@ class LCD_3inch5():
 
 
 class SmartTouch(object):
-    def __init__(self, screen):
+    def __init__(self, screen, xCorrection = 0, yCorrection = 0):
         self.screen = screen
         self.reads = []
-        self._last_pos = None
+        self._last_post = None
         self._read()
-       
+        self._xCorrection = xCorrection
+        self._yCorrection = yCorrection
+
     # This needs to be called frequently, if .get() is not called often.
     def do(self):
         self._read()
-        
+
     def get(self):
         self._read()
-        return self._last_pos
-    
+        if self._last_pos:
+            return [self._last_pos[0] + self._xCorrection, self._last_pos[1] + self._yCorrection ]
+        else:
+            return None
+
     def _read(self):
         def dist(p1, p2):
             return abs(p1[0]-p2[0])+abs(p1[1]-p2[1])
@@ -231,10 +235,13 @@ class SmartTouch(object):
             self._last_pos = None
         elif new_pos:
             c = 0
+            oldest = new_time
             for v in self.reads:
                 if v[1] and dist(v[1], new_pos) < 20:
                     c += 1
-            if c > len(self.reads)//3:
+                    if v[0] < oldest:
+                        oldest = v[0]
+            if c > len(self.reads)//3 and 50 < time.ticks_diff(new_time, oldest):
                 self._last_pos = new_pos
         if new_pos:
             self.reads.append(new_value)
@@ -285,7 +292,7 @@ class Box(object):
 
     def is_valid(self):
         return (self.x1 <= self.x2) and (self.y1 <= self.y2)
-    
+
     def min_size(self):
         return min(self.x2-self.x1, self.y2-self.y1)
 
@@ -324,7 +331,7 @@ class Sprite(object):
     def setBuffer(self, buf):
         assert len(buf) == getImageBytesize(self.width, self.height)
         self.sprite = buf
-    
+
     def getFramebuffer(self):
         return framebuf.FrameBuffer(self.sprite, self.width, self.height, framebuf.RGB565)
 
@@ -372,7 +379,7 @@ class Sprite(object):
 
 
 class Button(object):
-   
+
     def __init__(self, screen, box,
                  text="",
                  color_surface=RGB_FB(128, 128, 128),
@@ -382,13 +389,13 @@ class Button(object):
 
         self.screen = screen
         self.box = Box(int(box.x1), int(box.x2), int(box.y1), int(box.y2))
-        
+
         self.text = text
         self.color_surface = color_surface
         self.color_surface_pressed = color_surface_pressed
         self.color_text = color_text
         self.draw()
-        
+
     def draw(self):
         if self._state:
             self._drawPressed()
@@ -411,7 +418,7 @@ class Button(object):
         if self._state:
             fb.fill_rect(0, 0, self.box.width, self.box.height, self.color_surface)
         else:
-            fb.fill_rect(0, 0, self.box.width, self.box.height, self.color_surface_pressed)            
+            fb.fill_rect(0, 0, self.box.width, self.box.height, self.color_surface_pressed)
 
     def _drawNormal(self):
         fb, buf = self._getFB()
@@ -428,14 +435,14 @@ class Button(object):
         if self.text:
             fb.text(self.text, max(0, self.box.width//2 - len(self.text)*4)+2, self.box.height // 2 - 2, self.color_text)
         self.screen.ShowBufferAtBox(self.box, buf)
-        
+
     def _setState(self, new_state):
         new_state = min(1, max(0, new_state))
         if self._state == new_state:
             return
         self._state = new_state
         self.draw()
-        
+
     def do(self, touch):
         if touch != None:
             c = Coord(touch[0], touch[1])
@@ -449,10 +456,10 @@ class Button(object):
             self.doPressed()
             return True
         return False
-    
+
     def doPressed(self):
         pass
-   
+
 class Button3D(Button):
     def __init__(self, screen, box,
                  color_edge_dark=RGB_FB(64, 64, 64),
@@ -461,23 +468,23 @@ class Button3D(Button):
         self.color_edge_dark = color_edge_dark
         self.color_edge_light = color_edge_light
         Button.__init__(self, screen, box, kwargs)
-        
+
     def _drawUpLeftEdge(self, fb, color):
         fb.hline(0, 0, self.box.width-1, color)
         fb.hline(0, 1, self.box.width-3, color)
         fb.vline(0, 2, self.box.height-3, color)
         fb.vline(0, 3, self.box.height-5, color)
-    
+
     def _drawBottomRightEdge(self, fb, color):
         fb.hline(1, self.box.height-2, self.box.width-2, color)
         fb.hline(0, self.box.height-1, self.box.width-1, color)
         fb.vline(self.box.width-2, 1, self.box.height-2, color)
         fb.vline(self.box.width-1, 0, self.box.height-1, color)
-        
+
     def _drawEdge(self, fb):
         if self._state:
             self._drawBottomRightEdge(fb, self.color_edge_light)
             self._drawUpLeftEdge(fb, self.color_edge_dark)
         else:
             self._drawBottomRightEdge(fb, self.color_edge_dark)
-            self._drawUpLeftEdge(fb, self.color_edge_light)   
+            self._drawUpLeftEdge(fb, self.color_edge_light)

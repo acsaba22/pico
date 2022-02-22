@@ -3,8 +3,53 @@ import os
 import time
 
 
+class SmartTouch(object):
+    def __init__(self, screen, xCorrection = 0, yCorrection = 0):
+        self.screen = screen
+        self.reads = []
+        self._last_post = None
+        self._read()
+        self._xCorrection = xCorrection
+        self._yCorrection = yCorrection
+
+    # This needs to be called frequently, if .get() is not called often.
+    def do(self):
+        self._read()
+
+    def get(self):
+        self._read()
+        if self._last_pos:
+            return [self._last_pos[0] + self._xCorrection, self._last_pos[1] + self._yCorrection ]
+        else:
+            return None
+
+    def _read(self):
+        def dist(p1, p2):
+            return abs(p1[0]-p2[0])+abs(p1[1]-p2[1])
+        new_time, new_pos = time.ticks_ms(), self.screen.TouchGet()
+        new_value = new_time, new_pos
+        has_value = 0
+        self.reads = [v for v in self.reads if time.ticks_diff(new_time, v[0]) < 200 and v[1] is not None]
+        if len(self.reads) < 3:
+            self._last_pos = None
+        elif new_pos:
+            c = 0
+            oldest = new_time
+            for v in self.reads:
+                if v[1] and dist(v[1], new_pos) < 20:
+                    c += 1
+                    if v[0] < oldest:
+                        oldest = v[0]
+
+            if c > len(self.reads)//3 and 50 < time.ticks_diff(new_time, oldest):
+                self._last_pos = new_pos
+        if new_pos:
+            self.reads.append(new_value)
+
+
+
 LCD = liblcd.LCD_3inch5()
-smartTouch = liblcd.SmartTouch(LCD)
+smartTouch = liblcd.SmartTouch(LCD, yCorrection=-10)
 
 BLACK_1_BYTE = 0x00
 WHITE_1_BYTE = 0xff
@@ -53,7 +98,7 @@ class Controller:
 
         self.touchedCell = -1
 
-        self.viewCell = (MAXP//2)*MAXP + (MAXP//2)
+        self.cornerCell = (MAXP//2)*MAXP + (MAXP//2)
 
         self.firstTouch = [1,2]
         self.firstTouch = None
@@ -99,8 +144,8 @@ class Controller:
         tx, ty = touch
         x = tx//self.width
         y = ty//self.width
-        xstart = self.viewCell//MAXP
-        ystart = self.viewCell%MAXP
+        xstart = self.cornerCell//MAXP
+        ystart = self.cornerCell%MAXP
         x += xstart
         y += ystart
         return x*MAXP+y
@@ -109,8 +154,8 @@ class Controller:
         x = cell//MAXP
         y = cell % MAXP
 
-        xstart = self.viewCell//MAXP
-        ystart = self.viewCell%MAXP
+        xstart = self.cornerCell//MAXP
+        ystart = self.cornerCell%MAXP
 
         x -= xstart
         y -= ystart
@@ -146,21 +191,44 @@ class Controller:
         self.alive = eval(s)
         self.drawBoard()
 
-    def Move(self, touch):
+    def Drag(self, touch):
+        if not touch:
+            self.firstTouch = None
+            if self.moving:
+                self.moving = False
+                return True
+            return False
+
         if not self.firstTouch:
-            return
+            self.firstTouch = touch
+            self.firstCornerCell = self.cornerCell
+            return False
+
+        # if not self.firstTouch and touch:
+        #     self.firstTouch = touch
+        #     self.firstCornerCell = self.cornerCell
+
+        # if not touch:
+        #     self.firstTouch = None
+        #     self.moving = False
+        # if not self.firstTouch:
+        #     return
+
         xd = abs(touch[0]-self.firstTouch[0])
         yd = abs(touch[1]-self.firstTouch[1])
-        if 100 < xd + yd or self.moving:
+        if 60 < xd + yd or self.moving:
+            if not self.moving:
+                self.removeTouchSelection()
+                self.moving = True
             nowCell = self.findCell(touch)
             startCell = self.findCell(self.firstTouch)
-            nextCell = self.firstViewCell + (startCell - nowCell)
-            if self.viewCell != nextCell:
+            nextCornerCell = self.firstCornerCell + (startCell - nowCell)
+            if self.cornerCell != nextCornerCell:
                 self.hideCells()
-                self.viewCell = nextCell
+                self.cornerCell = nextCornerCell
                 self.showCells()
                 return True
-        return False
+        return self.moving
 
     def removeTouchSelection(self):
         self.showCell(self.touchedCell)
@@ -187,35 +255,22 @@ class Controller:
         smartTouch.do()
         touch = smartTouch.get()
 
-        if not self.firstTouch and touch:
-            self.firstTouch = touch
-            self.firstViewCell = self.viewCell
-
-        # print('touch:', touch)
-        if not touch:
-            self.firstTouch = None
-            # if self.moving:
-                # print('moving stop')
-            self.moving = False
 
 
         if self.bPlus.do(touch):
-            print('touched +')
             self.setZoom(self.zoom+1)
         if self.bMinus.do(touch):
-            print('touched -')
             self.setZoom(self.zoom-1)
         if self.bSave.do(touch):
-            print('touched Save')
             self.Save()
         if self.bLoad.do(touch):
-            print('touched Load')
             self.Load()
 
-        if self.Move(touch) or self.moving:
+        if self.Drag(touch):
             # print('moving start')
-            self.moving = True
+            # self.moving = True
             return
+
         self.flipIfReleased(touch)
 
 
