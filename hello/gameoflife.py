@@ -15,6 +15,7 @@ def initBoard():
     for y in range(80):
         LCD.ShowBuffer(0, 479, 4*y, 4*y+3, b)
 
+
 def clearGameBoard():
     b = bytearray([0xff] * 320 * 2 * 4)
     for y in range(80):
@@ -26,12 +27,21 @@ def Fill(x1, x2, y1, y2, color1Byte):
     LCD.ShowBuffer(x1, x2, y1, y2, b)
     # LCD.FillBuffer(x1, x2, y1, y2, bytearray([color1Byte, color1Byte ]))
 
-# class Stamp:
-#     def __init__
+
+class Stamp:
+    def __init__(self, xn, yn, color1Byte):
+        self.b = bytearray([color1Byte] * 2 * xn * yn)
+        self.xd = xn - 1
+        self.yd = yn - 1
+
+    def show(self, x1, y1):
+        LCD.ShowBuffer(x1, x1+self.xd, y1, y1+self.yd, self.b)
+
 
 H = 320
 MAXP = 10000
 MinEditZoom = 4
+
 
 class Controller:
     def __init__(self):
@@ -43,22 +53,25 @@ class Controller:
         Fill(320, 480, 160, 160, BLACK_1_BYTE)
         Fill(320, 480, 240, 240, BLACK_1_BYTE)
 
-        self.bMinus = liblcd.Button(LCD, liblcd.Box(322, 399, 241, 319), text= "---")
-        self.bPlus = liblcd.Button(LCD, liblcd.Box(401, 479, 241, 319), text= "+++")
+        self.bMinus = liblcd.Button(
+            LCD, liblcd.Box(322, 399, 241, 319), text="---")
+        self.bPlus = liblcd.Button(
+            LCD, liblcd.Box(401, 479, 241, 319), text="+++")
 
-        self.bLoad = liblcd.Button(LCD, liblcd.Box(322, 399, 161, 239), text= "LOAD")
-        self.bSave = liblcd.Button(LCD, liblcd.Box(401, 479, 161, 239), text= "SAVE")
-
+        self.bLoad = liblcd.Button(
+            LCD, liblcd.Box(322, 399, 161, 239), text="LOAD")
+        self.bSave = liblcd.Button(
+            LCD, liblcd.Box(401, 479, 161, 239), text="SAVE")
 
         self.alive = set()
 
-        self.setZoom(6)
+        self.setZoom(4)
 
         self.touchedCell = -1
 
         self.cornerCell = (MAXP//2)*MAXP + (MAXP//2)
 
-        self.firstTouch = [1,2]
+        self.firstTouch = [1, 2]
         self.firstTouch = None
 
         self.moving = False
@@ -71,6 +84,12 @@ class Controller:
             self.width = 2**self.zoom
             self.n = H / self.width
             self.drawBoard()
+            drawWidth = self.width
+            if 4 <= zoom:
+                drawWidth -= 1
+            self.stampLive = Stamp(drawWidth, drawWidth, 0x00)
+            self.stampDead = Stamp(drawWidth, drawWidth, 0xff)
+            self.stampMarked = Stamp(drawWidth, drawWidth, 0x55)
 
     def drawBoard(self):
         clearGameBoard()
@@ -85,12 +104,12 @@ class Controller:
     def hideCells(self):
         for c in self.alive:
             smartTouch.do()
-            self.fillCell(c, 0xff)
+            self.fillCell(c, self.stampDead)
 
     def showCells(self):
         for c in self.alive:
             smartTouch.do()
-            self.fillCell(c, 0x00)
+            self.fillCell(c, self.stampLive)
 
     def Flip(self, cell):
         if cell in self.alive:
@@ -103,53 +122,32 @@ class Controller:
         x = tx//self.width
         y = ty//self.width
         xstart = self.cornerCell//MAXP
-        ystart = self.cornerCell%MAXP
+        ystart = self.cornerCell % MAXP
         x += xstart
         y += ystart
         return x*MAXP+y
 
-    def fillRelativeCell(self, cell, color):
+    def fillRelativeCellStamp(self, cell, stamp: Stamp):
         x = cell//MAXP
         y = cell % MAXP
 
         if x < 0 or self.n <= x or y < 0 or self.n <= y:
             return
         sx1 = x*self.width
-        sx2 = sx1 + self.width - 1
         sy1 = y*self.width
-        sy2 = sy1+self.width - 1
         if MinEditZoom <= self.zoom:
-            sx1+=1
-            sy1+=1
-        Fill(sx1,sx2,sy1,sy2,color)
+            sx1 += 1
+            sy1 += 1
+        stamp.show(sx1, sy1)
 
-
-    def fillCell(self, cell, color):
-        x = cell//MAXP
-        y = cell % MAXP
-
-        xstart = self.cornerCell//MAXP
-        ystart = self.cornerCell%MAXP
-
-        x -= xstart
-        y -= ystart
-
-        if x < 0 or self.n <= x or y < 0 or self.n <= y:
-            return
-        sx1 = x*self.width
-        sx2 = sx1 + self.width - 1
-        sy1 = y*self.width
-        sy2 = sy1+self.width - 1
-        if MinEditZoom <= self.zoom:
-            sx1+=1
-            sy1+=1
-        Fill(sx1,sx2,sy1,sy2,color)
+    def fillCell(self, cell, stamp: Stamp):
+        self.fillRelativeCellStamp(cell-self.cornerCell, stamp)
 
     def showCell(self, cell):
-        color = 0xff
         if cell in self.alive:
-            color = 0x00
-        self.fillCell(cell, color)
+            self.fillCell(cell, self.stampLive)
+        else:
+            self.fillCell(cell, self.stampDead)
 
     def Save(self):
         dirs = os.listdir()
@@ -168,28 +166,27 @@ class Controller:
         ret = set()
         for cell in self.alive:
             relCell = cell-corner
-            if relCell//MAXP < self.n and relCell%MAXP < self.n:
+            if relCell//MAXP < self.n and relCell % MAXP < self.n:
                 ret.add(relCell)
         return ret
 
     def moveCornerCell(self, newCornerCell):
-        visibleCellsBefore = self.visibleRelativeCellsWithCorner(self.cornerCell)
-        visibleCellsAfter =  self.visibleRelativeCellsWithCorner(newCornerCell)
+        visibleCellsBefore = self.visibleRelativeCellsWithCorner(
+            self.cornerCell)
+        visibleCellsAfter = self.visibleRelativeCellsWithCorner(newCornerCell)
         toRemove = visibleCellsBefore - visibleCellsAfter
         toAdd = visibleCellsAfter - visibleCellsBefore
 
         for cell in toAdd:
             smartTouch.do()
-            self.fillRelativeCell(cell, 0x00)
+            self.fillRelativeCellStamp(cell, self.stampLive)
 
         for cell in toRemove:
             smartTouch.do()
-            self.fillRelativeCell(cell, 0xff)
+            self.fillRelativeCellStamp(cell, self.stampDead)
 
         self.cornerCell = newCornerCell
-        # self.hideCells()
-        # self.cornerCell = newCornerCell
-        # self.showCells()
+
 
     def Drag(self, touch):
         if not touch:
@@ -231,19 +228,16 @@ class Controller:
 
         currentCell = -1
         if MinEditZoom <= self.zoom and touch[0] < 320:
-                currentCell = self.findCell(touch)
+            currentCell = self.findCell(touch)
 
         if currentCell != self.touchedCell:
             self.removeTouchSelection()
             self.touchedCell = currentCell
-            self.fillCell(self.touchedCell, 0x55)
-
+            self.fillCell(self.touchedCell, self.stampMarked)
 
     def do(self):
         smartTouch.do()
         touch = smartTouch.get()
-
-
 
         if self.bPlus.do(touch):
             self.setZoom(self.zoom+1)
@@ -255,12 +249,9 @@ class Controller:
             self.Load()
 
         if self.Drag(touch):
-            # print('moving start')
-            # self.moving = True
             return
 
         self.flipIfReleased(touch)
-
 
 
 def main():
@@ -275,3 +266,10 @@ def main():
 
 
 main()
+
+# Banchmark:
+
+# ts = time.ticks_ms()
+# ...
+# te = time.ticks_ms()
+# print("duration: ", time.ticks_diff(te, ts))
