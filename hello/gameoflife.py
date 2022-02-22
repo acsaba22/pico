@@ -51,9 +51,7 @@ class Controller:
 
         self.setZoom(6)
 
-        self.pushedCell = -1
-        self.pushAge = 0 # TODO remove
-        self.longPushCell = -1 # TODO remove
+        self.touchedCell = -1
 
         self.viewCell = (MAXP//2)*MAXP + (MAXP//2)
 
@@ -61,10 +59,6 @@ class Controller:
         self.firstTouch = None
 
         self.moving = False
-
-    # def refreshBoard(self):
-    #     clearGameBoard()
-    #     self.DrawBoard()
 
     # 0..6
     # min edit 4
@@ -101,7 +95,8 @@ class Controller:
         else:
             self.alive.add(cell)
 
-    def findCell(self, tx, ty):
+    def findCell(self, touch):
+        tx, ty = touch
         x = tx//self.width
         y = ty//self.width
         xstart = self.viewCell//MAXP
@@ -157,8 +152,8 @@ class Controller:
         xd = abs(touch[0]-self.firstTouch[0])
         yd = abs(touch[1]-self.firstTouch[1])
         if 100 < xd + yd or self.moving:
-            nowCell = self.findCell(touch[0], touch[1])
-            startCell = self.findCell(self.firstTouch[0], self.firstTouch[1])
+            nowCell = self.findCell(touch)
+            startCell = self.findCell(self.firstTouch)
             nextCell = self.firstViewCell + (startCell - nowCell)
             if self.viewCell != nextCell:
                 self.hideCells()
@@ -166,6 +161,26 @@ class Controller:
                 self.showCells()
                 return True
         return False
+
+    def removeTouchSelection(self):
+        self.showCell(self.touchedCell)
+        self.touchedCell = -1
+
+    def flipIfReleased(self, touch):
+        if not touch:
+            if self.touchedCell != -1:
+                self.Flip(self.touchedCell)
+                self.removeTouchSelection()
+            return
+
+        currentCell = -1
+        if MinEditZoom <= self.zoom and touch[0] < 320:
+                currentCell = self.findCell(touch)
+
+        if currentCell != self.touchedCell:
+            self.removeTouchSelection()
+            self.touchedCell = currentCell
+            self.fillCell(self.touchedCell, 0x55)
 
 
     def do(self):
@@ -201,25 +216,7 @@ class Controller:
             # print('moving start')
             self.moving = True
             return
-
-        currentCell = -1
-        if touch and MinEditZoom <= self.zoom:
-            tx, ty = touch
-            if tx < 320:
-                currentCell = self.findCell(tx, ty)
-
-        if self.pushedCell == currentCell:
-            self.pushAge += 1
-            if 5 < self.pushAge:
-                self.longPushCell = self.pushedCell
-        else:
-            if self.pushedCell != -1:
-                if currentCell == -1:
-                    self.Flip(self.longPushCell)
-                    self.showCell(self.longPushCell)
-                self.showCell(self.pushedCell)
-            self.pushedCell = currentCell
-            self.fillCell(self.pushedCell, 0x55)
+        self.flipIfReleased(touch)
 
 
 
