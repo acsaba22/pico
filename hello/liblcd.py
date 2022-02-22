@@ -163,22 +163,6 @@ class LCD_3inch5():
         self.spi.write(buffer)
         self.cs(1)
 
-    def FillBuffer(self, x1, x2, y1, y2, color):
-        self.write_cmd(0x2A)
-        self.write_data_buffer([x1 >> 8, x1 & 0xFF, x2 >> 8, x2 & 0xFF])
-
-        self.write_cmd(0x2B)
-        self.write_data_buffer([y1 >> 8, y1 & 0xFF, y2 >> 8, y2 & 0xFF])
-
-        self.write_cmd(0x2C)
-
-        self.cs(1)
-        self.dc(1)
-        self.cs(0)
-        for _ in range((x2-x1+1)*(y2-y1+1)):
-            self.spi.write(color)
-        self.cs(1)
-
     def ShowBufferAtBox(self, box, buffer):
         self.ShowBuffer(box.x1, box.x2, box.y1, box.y2, buffer)
 
