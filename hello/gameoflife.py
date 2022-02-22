@@ -3,51 +3,6 @@ import os
 import time
 
 
-class SmartTouch(object):
-    def __init__(self, screen, xCorrection = 0, yCorrection = 0):
-        self.screen = screen
-        self.reads = []
-        self._last_post = None
-        self._read()
-        self._xCorrection = xCorrection
-        self._yCorrection = yCorrection
-
-    # This needs to be called frequently, if .get() is not called often.
-    def do(self):
-        self._read()
-
-    def get(self):
-        self._read()
-        if self._last_pos:
-            return [self._last_pos[0] + self._xCorrection, self._last_pos[1] + self._yCorrection ]
-        else:
-            return None
-
-    def _read(self):
-        def dist(p1, p2):
-            return abs(p1[0]-p2[0])+abs(p1[1]-p2[1])
-        new_time, new_pos = time.ticks_ms(), self.screen.TouchGet()
-        new_value = new_time, new_pos
-        has_value = 0
-        self.reads = [v for v in self.reads if time.ticks_diff(new_time, v[0]) < 200 and v[1] is not None]
-        if len(self.reads) < 3:
-            self._last_pos = None
-        elif new_pos:
-            c = 0
-            oldest = new_time
-            for v in self.reads:
-                if v[1] and dist(v[1], new_pos) < 20:
-                    c += 1
-                    if v[0] < oldest:
-                        oldest = v[0]
-
-            if c > len(self.reads)//3 and 50 < time.ticks_diff(new_time, oldest):
-                self._last_pos = new_pos
-        if new_pos:
-            self.reads.append(new_value)
-
-
-
 LCD = liblcd.LCD_3inch5()
 smartTouch = liblcd.SmartTouch(LCD, yCorrection=-10)
 
@@ -69,7 +24,10 @@ def clearGameBoard():
 def Fill(x1, x2, y1, y2, color1Byte):
     b = bytearray([color1Byte] * 2 * (x2-x1+1)*(y2-y1+1))
     LCD.ShowBuffer(x1, x2, y1, y2, b)
+    # LCD.FillBuffer(x1, x2, y1, y2, bytearray([color1Byte, color1Byte ]))
 
+# class Stamp:
+#     def __init__
 
 H = 320
 MAXP = 10000
@@ -150,6 +108,22 @@ class Controller:
         y += ystart
         return x*MAXP+y
 
+    def fillRelativeCell(self, cell, color):
+        x = cell//MAXP
+        y = cell % MAXP
+
+        if x < 0 or self.n <= x or y < 0 or self.n <= y:
+            return
+        sx1 = x*self.width
+        sx2 = sx1 + self.width - 1
+        sy1 = y*self.width
+        sy2 = sy1+self.width - 1
+        if MinEditZoom <= self.zoom:
+            sx1+=1
+            sy1+=1
+        Fill(sx1,sx2,sy1,sy2,color)
+
+
     def fillCell(self, cell, color):
         x = cell//MAXP
         y = cell % MAXP
@@ -187,9 +161,35 @@ class Controller:
     def Load(self):
         f = open('life/002')
         s = f.read()
-        print(s)
         self.alive = eval(s)
         self.drawBoard()
+
+    def visibleRelativeCellsWithCorner(self, corner):
+        ret = set()
+        for cell in self.alive:
+            relCell = cell-corner
+            if relCell//MAXP < self.n and relCell%MAXP < self.n:
+                ret.add(relCell)
+        return ret
+
+    def moveCornerCell(self, newCornerCell):
+        visibleCellsBefore = self.visibleRelativeCellsWithCorner(self.cornerCell)
+        visibleCellsAfter =  self.visibleRelativeCellsWithCorner(newCornerCell)
+        toRemove = visibleCellsBefore - visibleCellsAfter
+        toAdd = visibleCellsAfter - visibleCellsBefore
+
+        for cell in toAdd:
+            smartTouch.do()
+            self.fillRelativeCell(cell, 0x00)
+
+        for cell in toRemove:
+            smartTouch.do()
+            self.fillRelativeCell(cell, 0xff)
+
+        self.cornerCell = newCornerCell
+        # self.hideCells()
+        # self.cornerCell = newCornerCell
+        # self.showCells()
 
     def Drag(self, touch):
         if not touch:
@@ -204,16 +204,6 @@ class Controller:
             self.firstCornerCell = self.cornerCell
             return False
 
-        # if not self.firstTouch and touch:
-        #     self.firstTouch = touch
-        #     self.firstCornerCell = self.cornerCell
-
-        # if not touch:
-        #     self.firstTouch = None
-        #     self.moving = False
-        # if not self.firstTouch:
-        #     return
-
         xd = abs(touch[0]-self.firstTouch[0])
         yd = abs(touch[1]-self.firstTouch[1])
         if 60 < xd + yd or self.moving:
@@ -224,9 +214,7 @@ class Controller:
             startCell = self.findCell(self.firstTouch)
             nextCornerCell = self.firstCornerCell + (startCell - nowCell)
             if self.cornerCell != nextCornerCell:
-                self.hideCells()
-                self.cornerCell = nextCornerCell
-                self.showCells()
+                self.moveCornerCell(nextCornerCell)
                 return True
         return self.moving
 
