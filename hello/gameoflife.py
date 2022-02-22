@@ -101,17 +101,12 @@ class Controller:
                 Fill(k, k, 0, H-1, 0)
         self.showCells()
 
-    def hideCells(self):
-        for c in self.alive:
-            smartTouch.do()
-            self.fillCell(c, self.stampDead)
-
     def showCells(self):
         for c in self.alive:
             smartTouch.do()
             self.fillCell(c, self.stampLive)
 
-    def Flip(self, cell):
+    def flip(self, cell):
         if cell in self.alive:
             self.alive.remove(cell)
         else:
@@ -127,7 +122,7 @@ class Controller:
         y += ystart
         return x*MAXP+y
 
-    def fillRelativeCellStamp(self, cell, stamp: Stamp):
+    def fillRelativeCell(self, cell, stamp: Stamp):
         x = cell//MAXP
         y = cell % MAXP
 
@@ -141,7 +136,7 @@ class Controller:
         stamp.show(sx1, sy1)
 
     def fillCell(self, cell, stamp: Stamp):
-        self.fillRelativeCellStamp(cell-self.cornerCell, stamp)
+        self.fillRelativeCell(cell-self.cornerCell, stamp)
 
     def showCell(self, cell):
         if cell in self.alive:
@@ -162,7 +157,7 @@ class Controller:
         self.alive = eval(s)
         self.drawBoard()
 
-    def visibleRelativeCellsWithCorner(self, corner):
+    def visibleRelativeCells(self, corner):
         ret = set()
         for cell in self.alive:
             relCell = cell-corner
@@ -171,22 +166,20 @@ class Controller:
         return ret
 
     def moveCornerCell(self, newCornerCell):
-        visibleCellsBefore = self.visibleRelativeCellsWithCorner(
-            self.cornerCell)
-        visibleCellsAfter = self.visibleRelativeCellsWithCorner(newCornerCell)
+        visibleCellsBefore = self.visibleRelativeCells(self.cornerCell)
+        visibleCellsAfter = self.visibleRelativeCells(newCornerCell)
         toRemove = visibleCellsBefore - visibleCellsAfter
         toAdd = visibleCellsAfter - visibleCellsBefore
 
         for cell in toAdd:
             smartTouch.do()
-            self.fillRelativeCellStamp(cell, self.stampLive)
+            self.fillRelativeCell(cell, self.stampLive)
 
         for cell in toRemove:
             smartTouch.do()
-            self.fillRelativeCellStamp(cell, self.stampDead)
+            self.fillRelativeCell(cell, self.stampDead)
 
         self.cornerCell = newCornerCell
-
 
     def Drag(self, touch):
         if not touch:
@@ -222,7 +215,7 @@ class Controller:
     def flipIfReleased(self, touch):
         if not touch:
             if self.touchedCell != -1:
-                self.Flip(self.touchedCell)
+                self.flip(self.touchedCell)
                 self.removeTouchSelection()
             return
 
@@ -256,8 +249,6 @@ class Controller:
 
 def main():
     LCD.BackLight(100)
-    # initBoard()
-    # Fill(320, 320, 0, 319, BLACK_1_BYTE)
     print('hello life')
     c = Controller()
     while True:
