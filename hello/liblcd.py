@@ -163,6 +163,28 @@ class LCD_3inch5():
         self.spi.write(buffer)
         self.cs(1)
 
+    def FillBuffer(self, x1, x2, y1, y2, color):
+        self.write_cmd(0x2A)
+        self.write_data_buffer([x1 >> 8, x1 & 0xFF, x2 >> 8, x2 & 0xFF])
+
+        self.write_cmd(0x2B)
+        self.write_data_buffer([y1 >> 8, y1 & 0xFF, y2 >> 8, y2 & 0xFF])
+
+        self.write_cmd(0x2C)
+
+        self.cs(1)
+        self.dc(1)
+        self.cs(0)
+        if x2-x1 > y2-y1:
+            c = color_to_bytes(color)*(x2-x1+1)
+            for _ in range((y2-y1+1)):
+                self.spi.write(c)
+        else:
+            c = color_to_bytes(color)*(y2-y1+1)
+            for _ in range((x2-x1+1)):
+                self.spi.write(c)
+        self.cs(1)
+
     def ShowBufferAtBox(self, box, buffer):
         self.ShowBuffer(box.x1, box.x2, box.y1, box.y2, buffer)
 
@@ -170,9 +192,10 @@ class LCD_3inch5():
         self.ShowBuffer(int(x), int(x), int(y), int(y), bytearray(color_to_bytes(color)))
 
     def Clear(self, color = WHITE):
-        b = bytearray(color_to_bytes(color) * 480 * 2 *4)
-        for y in range(0, 320, 4):
-            self.ShowBuffer(0, 479, y, y+3, b)
+        self.FillBuffer(0, 479, 0, 319, color)
+#        b = bytearray(color_to_bytes(color) * 480 * 2 *4)
+#        for y in range(0, 320, 4):
+#            self.ShowBuffer(0, 479, y, y+3, b)
 
 
     def TouchGet(self):
