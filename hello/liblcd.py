@@ -193,10 +193,6 @@ class LCD_3inch5():
 
     def Clear(self, color = WHITE):
         self.FillBuffer(0, 479, 0, 319, color)
-#        b = bytearray(color_to_bytes(color) * 480 * 2 *4)
-#        for y in range(0, 320, 4):
-#            self.ShowBuffer(0, 479, y, y+3, b)
-
 
     def TouchGet(self):
         if self.irq() == 0:
@@ -472,7 +468,6 @@ class Button(object):
             if c in self.box:
                 self._setState(1)
             elif self._state == 1:
-                print ("left %s" % (c, ))
                 self._setState(0)
         elif self._state == 1:
             self._setState(0)
