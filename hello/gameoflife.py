@@ -1,7 +1,7 @@
 import liblcd
 import os
 import time
-
+import gc
 
 LCD = liblcd.LCD_3inch5()
 smartTouch = liblcd.SmartTouch(LCD, yCorrection=-10)
@@ -42,8 +42,10 @@ H = 320
 MAXP = 10000
 MinEditZoom = 4
 
+FileName = '003'
 
 class Controller:
+
     def __init__(self):
         initBoard()
         Fill(320, 321, 0, 319, BLACK_1_BYTE)
@@ -57,11 +59,18 @@ class Controller:
             LCD, liblcd.Box(322, 399, 241, 319), text="---")
         self.bPlus = liblcd.Button(
             LCD, liblcd.Box(401, 479, 241, 319), text="+++")
-
         self.bLoad = liblcd.Button(
             LCD, liblcd.Box(322, 399, 161, 239), text="LOAD")
         self.bSave = liblcd.Button(
             LCD, liblcd.Box(401, 479, 161, 239), text="SAVE")
+
+        self.bNext = liblcd.Button(
+            LCD, liblcd.Box(401, 479, 0, 79), text=">")
+        self.bStartStop = liblcd.Button(
+            LCD, liblcd.Box(322, 399, 0, 79), text=">>")
+
+        self.bClear = liblcd.Button(
+            LCD, liblcd.Box(322, 399, 81, 159), text="CLEAR")
 
         self.alive = set()
 
@@ -75,6 +84,8 @@ class Controller:
         self.firstTouch = None
 
         self.moving = False
+        self.playing = False
+        self.lastPlayMs = time.ticks_ms()
 
     # 0..6
     # min edit 4
@@ -82,14 +93,15 @@ class Controller:
         if 0 <= zoom and zoom <= 6:
             self.zoom = zoom
             self.width = 2**self.zoom
-            self.n = H / self.width
-            self.drawBoard()
+            self.n = H // self.width
             drawWidth = self.width
             if 4 <= zoom:
                 drawWidth -= 1
             self.stampLive = Stamp(drawWidth, drawWidth, 0x00)
             self.stampDead = Stamp(drawWidth, drawWidth, 0xff)
             self.stampMarked = Stamp(drawWidth, drawWidth, 0x55)
+
+            self.drawBoard()
 
     def drawBoard(self):
         clearGameBoard()
@@ -148,26 +160,26 @@ class Controller:
         dirs = os.listdir()
         if 'life' not in dirs:
             os.mkdir('life')
-        f = open('life/002', 'w')
+        f = open('life/'+FileName, 'w')
         f.write(repr(self.alive))
 
     def Load(self):
-        f = open('life/002')
+        f = open('life/'+FileName)
         s = f.read()
         self.alive = eval(s)
         self.drawBoard()
 
-    def visibleRelativeCells(self, corner):
+    def visibleRelativeCells(self, corner, alive):
         ret = set()
-        for cell in self.alive:
+        for cell in alive:
             relCell = cell-corner
             if relCell//MAXP < self.n and relCell % MAXP < self.n:
                 ret.add(relCell)
         return ret
 
-    def moveCornerCell(self, newCornerCell):
-        visibleCellsBefore = self.visibleRelativeCells(self.cornerCell)
-        visibleCellsAfter = self.visibleRelativeCells(newCornerCell)
+    def drawDiff(self, oldCornerCell, newCornerCell, oldAlive, newAlive):
+        visibleCellsBefore = self.visibleRelativeCells(oldCornerCell, oldAlive)
+        visibleCellsAfter = self.visibleRelativeCells(newCornerCell, newAlive)
         toRemove = visibleCellsBefore - visibleCellsAfter
         toAdd = visibleCellsAfter - visibleCellsBefore
 
@@ -179,6 +191,8 @@ class Controller:
             smartTouch.do()
             self.fillRelativeCell(cell, self.stampDead)
 
+    def moveCornerCell(self, newCornerCell):
+        self.drawDiff(self.cornerCell, newCornerCell, self.alive, self.alive)
         self.cornerCell = newCornerCell
 
     def Drag(self, touch):
@@ -228,18 +242,69 @@ class Controller:
             self.touchedCell = currentCell
             self.fillCell(self.touchedCell, self.stampMarked)
 
+    def next(self):
+        neighs = [-MAXP-1, -MAXP, -MAXP+1, -1, +1, MAXP-1, MAXP, MAXP+1]
+        neighNum = {}
+        for cell in self.alive:
+            for d in neighs:
+                cell2 = cell+d
+                neighNum[cell2] = neighNum.get(cell2, 0)+1 # type: ignore
+
+        nextGen = set()
+        for cell, k in neighNum.items():
+            if k == 3 or ((k == 4 or k == 2) and cell in self.alive):
+                nextGen.add(cell)
+        self.drawDiff(self.cornerCell, self.cornerCell, self.alive, nextGen)
+
+        gc.collect()
+
+        self.alive = nextGen
+
+    def zoomOut(self):
+        self.cornerCell -= (self.n//2)*MAXP + self.n//2
+        self.setZoom(self.zoom-1)
+
+    def zoomIn(self):
+        self.cornerCell += (self.n//4)*MAXP + self.n//4
+        self.setZoom(self.zoom+1)
+
+    def startStop(self):
+        if self.playing:
+            self.playing = False
+            self.bStartStop.setText(">>")
+            self.bStartStop.draw()
+        else:
+            self.playing = True
+            self.bStartStop.setText("STOP")
+            self.bStartStop.draw()
+
+    def playIfStarted(self):
+        if self.playing:
+            ts = time.ticks_ms()
+            if 1000 < time.ticks_diff(ts, self.lastPlayMs):
+                self.next()
+                self.lastPlayMs = ts
+
     def do(self):
-        smartTouch.do()
         touch = smartTouch.get()
 
         if self.bPlus.do(touch):
-            self.setZoom(self.zoom+1)
+            self.zoomIn()
         if self.bMinus.do(touch):
-            self.setZoom(self.zoom-1)
+            self.zoomOut()
         if self.bSave.do(touch):
             self.Save()
         if self.bLoad.do(touch):
             self.Load()
+        if self.bNext.do(touch):
+            self.next()
+        if self.bStartStop.do(touch):
+            self.startStop()
+        if self.bClear.do(touch):
+            self.alive = set()
+            self.drawBoard()
+
+        self.playIfStarted()
 
         if self.Drag(touch):
             return
