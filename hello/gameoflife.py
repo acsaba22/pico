@@ -74,7 +74,7 @@ class Controller:
 
         self.alive = set()
 
-        self.setZoom(4)
+        self.setZoom(5)
 
         self.touchedCell = -1
 
@@ -251,14 +251,25 @@ class Controller:
                 neighNum[cell2] = neighNum.get(cell2, 0)+1 # type: ignore
 
         nextGen = set()
+        same = True
         for cell, k in neighNum.items():
-            if k == 3 or ((k == 4 or k == 2) and cell in self.alive):
+            # # Buggy algo
+            # if 2 <= k and k <= 4:
+            #     nextGen.add(cell)
+            #     same = False
+
+            if cell in self.alive and 2 <= k and k <= 3:
                 nextGen.add(cell)
+            elif k == 3:
+                nextGen.add(cell)
+                same = False
+        if len(nextGen) != len(self.alive):
+            same = False
         self.drawDiff(self.cornerCell, self.cornerCell, self.alive, nextGen)
 
         gc.collect()
-
         self.alive = nextGen
+        return not same
 
     def zoomOut(self):
         self.cornerCell -= (self.n//2)*MAXP + self.n//2
@@ -268,11 +279,14 @@ class Controller:
         self.cornerCell += (self.n//4)*MAXP + self.n//4
         self.setZoom(self.zoom+1)
 
+    def stop(self):
+        self.playing = False
+        self.bStartStop.setText(">>")
+        self.bStartStop.draw()
+
     def startStop(self):
         if self.playing:
-            self.playing = False
-            self.bStartStop.setText(">>")
-            self.bStartStop.draw()
+            self.stop()
         else:
             self.playing = True
             self.bStartStop.setText("STOP")
@@ -281,8 +295,13 @@ class Controller:
     def playIfStarted(self):
         if self.playing:
             ts = time.ticks_ms()
-            if 1000 < time.ticks_diff(ts, self.lastPlayMs):
-                self.next()
+            if 500 < time.ticks_diff(ts, self.lastPlayMs):
+                nextStart = time.ticks_ms()
+                hasChange = not self.next()
+                if 2000 < time.ticks_diff(time.ticks_ms(), nextStart):
+                    self.stop()
+                if hasChange:
+                    self.stop()
                 self.lastPlayMs = ts
 
     def do(self):
