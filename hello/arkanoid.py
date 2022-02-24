@@ -43,6 +43,11 @@ class Ball(object):
                 max_y = player_box.y2
             if ball_pos.y < max_y < new_ball_pos.y:
                 self.ball_dir[1] = -self.ball_dir[1]
+                player_size = player_box.x2 - player_box.x1
+                hit_location = ball_pos.x - player_box.x1
+                bucket = hit_location*15 // player_size
+                # bucket in [0..14]
+                self.ball_dir[0] += (bucket - 7)
         self.sprite.moveBy(self.ball_dir[0], self.ball_dir[1])
 
 
@@ -81,7 +86,7 @@ class Player(object):
                 box.x2 = box.x1+delta
             else:
                 box.x1 = box.x2+delta
-            self.sprite.lcd.FillBufferAtBox(box, self.sprite.bg_color)        
+            self.sprite.lcd.FillBufferAtBox(box, self.sprite.bg_color)
         self.sprite.moveBy(delta, 0, do_undraw=False)
 
 class Score(object):
@@ -167,7 +172,7 @@ def main():
         score.hide()
         text_box.set_text(["GAME OVER", "", "points: %d" % (score.score,)]);
         text_box.show()
-        time.sleep(2)
+        time.sleep(0.5)
         while not screen.TouchGet():
             pass
         text_box.hide()
