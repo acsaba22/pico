@@ -184,6 +184,10 @@ class LCD_3inch5():
             for _ in range((x2-x1+1)):
                 self.spi.write(c)
         self.cs(1)
+        
+    def FillBufferAtBox(self, box, color):
+        self.FillBuffer(box.x1, box.x2, box.y1, box.y2, color)
+
 
     def ShowBufferAtBox(self, box, buffer):
         self.ShowBuffer(box.x1, box.x2, box.y1, box.y2, buffer)
@@ -330,14 +334,19 @@ def getImageBytesize(w, h):
     return w*h*2
 
 class Sprite(object):
-    def __init__(self, lcd, width, height, background_color=None):
+    def __init__(self, lcd, width, height, background_color=None, buffer=None):
         self.width = width
         self.height = height
 
         self.pos = Coord()
         expected_size = getImageBytesize(self.width, self.height)
-        self.sprite = bytearray(expected_size)
-        self.background = bytearray(color_to_bytes(background_color or DEFAULT_BG_COLOR) * width * height)
+        if buffer:
+            assert len(buffer) == expected_size
+            self.sprite = buffer
+        else:
+            self.sprite = bytearray(expected_size)
+        self.bg_color = background_color or DEFAULT_BG_COLOR
+#        self.background = bytearray(color_to_bytes(background_color or DEFAULT_BG_COLOR) * width * height)
         self.lcd = lcd
         self.visible = False
         self._x_offset = - width//2
@@ -363,9 +372,10 @@ class Sprite(object):
 
     def undraw(self):
         if self.visible:
-            self.lcd.ShowBufferAtBox(
-                self.getBox(),
-                self.background)
+            self.lcd.FillBufferAtBox(self.getBox(), self.bg_color)
+#            self.lcd.ShowBufferAtBox(
+#                self.getBox(),
+#                self.background)
 
     def draw(self):
         if self.visible:
