@@ -3,11 +3,6 @@ import time
 import framebuf
 
 
-def init_board(lcd):
-    b = bytearray([0xFF] * 480 * 2)
-    for y in range(320):
-        lcd.ShowBuffer(0, 479, y, y, b)
-
 
 MIN_X, MAX_X = 5, 475
 MIN_Y, MAX_Y = 5, 315
@@ -80,7 +75,14 @@ class Player(object):
             delta = min(self.MAX_SPEED, self.target_pos-self.sprite.pos.x)
         elif self.sprite.pos.x > self.target_pos:
             delta = -min(self.MAX_SPEED, self.sprite.pos.x-self.target_pos)
-        self.sprite.moveBy(delta, 0)
+        if self.sprite.visible:
+            box = self.sprite.getBox()
+            if delta > 0:
+                box.x2 = box.x1+delta
+            else:
+                box.x1 = box.x2+delta
+            self.sprite.lcd.FillBufferAtBox(box, self.sprite.bg_color)        
+        self.sprite.moveBy(delta, 0, do_undraw=False)
 
 class Score(object):
 
@@ -134,7 +136,7 @@ class Text(object):
 def main():
     screen = liblcd.LCD_3inch5()
     screen.BackLight(100)
-    init_board(screen)
+    screen.Clear()
     player = Player(screen)
     ball = Ball(screen, player)
     text_box = Text(screen)
