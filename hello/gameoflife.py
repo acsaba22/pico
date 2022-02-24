@@ -1,3 +1,4 @@
+import random
 import liblcd
 import os
 import time
@@ -42,7 +43,7 @@ H = 320
 MAXP = 10000
 MinEditZoom = 4
 
-FileName = '003'
+FileName = '004'
 
 class Controller:
 
@@ -55,22 +56,23 @@ class Controller:
         Fill(320, 480, 160, 160, BLACK_1_BYTE)
         Fill(320, 480, 240, 240, BLACK_1_BYTE)
 
-        self.bMinus = liblcd.Button(
-            LCD, liblcd.Box(322, 399, 241, 319), text="---")
-        self.bPlus = liblcd.Button(
-            LCD, liblcd.Box(401, 479, 241, 319), text="+++")
+
+        self.bStartStop = liblcd.Button(
+            LCD, liblcd.Box(322, 399, 0, 79), text=">>")
+        self.bNext = liblcd.Button(
+            LCD, liblcd.Box(401, 479, 0, 79), text=">")
+        self.bClear = liblcd.Button(
+            LCD, liblcd.Box(322, 399, 81, 159), text="CLEAR")
+        self.bRandom = liblcd.Button(
+            LCD, liblcd.Box(401, 479, 81, 159), text="RANDOM")
         self.bLoad = liblcd.Button(
             LCD, liblcd.Box(322, 399, 161, 239), text="LOAD")
         self.bSave = liblcd.Button(
             LCD, liblcd.Box(401, 479, 161, 239), text="SAVE")
-
-        self.bNext = liblcd.Button(
-            LCD, liblcd.Box(401, 479, 0, 79), text=">")
-        self.bStartStop = liblcd.Button(
-            LCD, liblcd.Box(322, 399, 0, 79), text=">>")
-
-        self.bClear = liblcd.Button(
-            LCD, liblcd.Box(322, 399, 81, 159), text="CLEAR")
+        self.bMinus = liblcd.Button(
+            LCD, liblcd.Box(322, 399, 241, 319), text="---")
+        self.bPlus = liblcd.Button(
+            LCD, liblcd.Box(401, 479, 241, 319), text="+++")
 
         self.alive = set()
 
@@ -304,6 +306,25 @@ class Controller:
                     self.stop()
                 self.lastPlayMs = ts
 
+    def generateRandom(self):
+        k = 10
+        chance = 40
+
+        self.stop()
+        self.alive = set()
+        x = self.cornerCell//MAXP + self.n//2
+        y =self.cornerCell%MAXP + self.n//2
+        a = k//2
+        b = k - a
+        for xd in range(-a, b):
+            for yd in range(-a, b):
+                # print('random-e?', xd, yd)
+                if random.randrange(100) < chance:
+                    # print('igen!')
+                    self.alive.add((x+xd)*MAXP+y+yd)
+
+        self.drawBoard()
+
     def do(self):
         touch = smartTouch.get()
 
@@ -322,6 +343,8 @@ class Controller:
         if self.bClear.do(touch):
             self.alive = set()
             self.drawBoard()
+        if self.bRandom.do(touch):
+            self.generateRandom()
 
         self.playIfStarted()
 
