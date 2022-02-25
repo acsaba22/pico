@@ -1,3 +1,4 @@
+import framebuf
 import random
 import liblcd
 import os
@@ -64,6 +65,8 @@ class Controller:
             LCD, liblcd.Box(401, 479, 81, 159), text="RESET")
         self.bLoad = liblcd.Button(
             LCD, liblcd.Box(322, 399, 161, 239), text="LOAD")
+        self.UpdateLoadButton(self.bLoad)
+
         self.bSave = liblcd.Button(
             LCD, liblcd.Box(401, 479, 161, 239), text="SAVE")
         self.bMinus = liblcd.Button(
@@ -105,6 +108,8 @@ class Controller:
         self.setClearRandomButtonText()
         self.bReset.setText("RESET")
         self.bLoad.setText("LOAD")
+        self.UpdateLoadButton(self.bLoad)
+        
         self.bSave.setText("SAVE")
         self.bMinus.setText("---")
         self.bPlus.setText("+++")
@@ -199,6 +204,36 @@ class Controller:
         self.drawBoard()
         self.setClearRandomButtonText()
         self.saveStartState()
+
+    def UpdateLoadButton(self, button):
+        f = open(FolderName + '/' + FileName)
+        s = f.read()
+        state = eval(s)
+        
+        min_x, max_x = None, None
+        min_y, max_y = None, None
+        for cell in state:
+            x = cell//MAXP
+            y = cell % MAXP
+            if min_x is None:
+                min_x, max_x = x, x
+                min_y, max_y = y, y
+            else:
+                min_x, max_x = min(x, min_x), max(x, max_x)
+                min_y, max_y = min(y, min_y), max(y, max_y)
+        w = min(16, max_x - min_x + 1)
+        h = min(16, max_y - min_y + 1)
+        size = max(w, h)
+        step = 32//size
+        real_size = size * step
+        buf = bytearray([0xFF] * real_size*real_size*2)
+        fb = framebuf.FrameBuffer(buf, real_size, real_size, framebuf.RGB565)
+        for cell in state:
+            x = cell//MAXP
+            y = cell % MAXP
+            fb.fill_rect((x-min_x)*step, (y-min_y)*step, step, step, liblcd.BLACK)
+        button.setText("")
+        button.setImage(fb, real_size, real_size)
 
     def visibleRelativeCells(self, corner, alive):
         ret = set()
@@ -386,6 +421,7 @@ class Controller:
             self.zoomOut()
         if self.bSave.do(touch):
             self.Save()
+            self.UpdateLoadButton(self.bLoad)
         if self.bLoad.do(touch):
             self.Load()
         if self.bNext.do(touch):
