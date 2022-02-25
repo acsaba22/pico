@@ -458,10 +458,8 @@ class Button(object):
         else:
             fb.fill_rect(0, 0, self.box.width, self.box.height, self.color_surface_pressed)
 
-    def _drawNormal(self):
-        fb, buf = self._getFB()
-        self._drawSurface(fb)
-        self._drawEdge(fb)
+    def _drawContent(self, fb):
+        offset_x, offset_y = (2,2) if self._state else (0,0)
         text_lines = []
         text_x, text_y, text_w, text_h = 0, 0, 0, 0
         img_fb = None
@@ -490,20 +488,25 @@ class Button(object):
                 text_y = self.box.height//2 - (text_h+img_h+PADDING)//2
                 img_y = text_y + text_h + PADDING
         if img_fb:
-            fb.blit(img_fb, img_x, img_y)
+            fb.blit(img_fb, img_x+offset_x, img_y+offset_y)
         if text_lines:
             line_no = 0
             for line in text_lines:
-                fb.text(self.text, text_x, text_y+8*line_no, self.color_text)
+                fb.text(line, text_x+offset_x, text_y+8*line_no+offset_y, self.color_text)
                 line_no += 1
+
+    def _drawNormal(self):
+        fb, buf = self._getFB()
+        self._drawSurface(fb)
+        self._drawEdge(fb)
+        self._drawContent(fb)
         self.screen.ShowBufferAtBox(self.box, buf)
 
     def _drawPressed(self):
         fb, buf = self._getFB()
         self._drawSurface(fb)
         self._drawEdge(fb)
-        if self.text:
-            fb.text(self.text, max(0, self.box.width//2 - len(self.text)*4)+2, self.box.height // 2 - 2, self.color_text)
+        self._drawContent(fb)
         self.screen.ShowBufferAtBox(self.box, buf)
 
     def _setState(self, new_state):
