@@ -11,14 +11,7 @@ smartTouch = liblcd.SmartTouch(LCD, yCorrection=-10)
 
 BLACK_1_BYTE = 0x00
 WHITE_1_BYTE = 0xff
-
-
-def initBoard():
-    LCD.Clear()
-
-
-def clearGameBoard():
-    LCD.FillBuffer(0, 319, 0, 319, liblcd.WHITE)
+# MyColor = 0x5555
 
 
 def Fill(x1, x2, y1, y2, color1Byte):
@@ -48,7 +41,7 @@ FileName = '004'
 class Controller:
 
     def __init__(self):
-        initBoard()
+        LCD.Clear()
         Fill(320, 321, 0, 319, BLACK_1_BYTE)
 
         Fill(400, 400, 0, 319, BLACK_1_BYTE)
@@ -96,6 +89,7 @@ class Controller:
 
         self.findSaveFile()
         self.setSaveButtonText()
+        self.loadPage = 0
 
     def findSaveFile(self):
         dirs = os.listdir()
@@ -128,7 +122,8 @@ class Controller:
         self.bPlus.setText("+++")
 
     def loadPressed(self):
-        os.listdir(FolderName)
+        fnames = sorted(os.listdir(FolderName))
+        self.loadPage
 
 
     # 0..6
@@ -148,7 +143,7 @@ class Controller:
             self.drawBoard()
 
     def drawBoard(self):
-        clearGameBoard()
+        LCD.FillBuffer(0, 319, 0, 319, liblcd.WHITE)
         if MinEditZoom <= self.zoom:
             for i in range(self.n):
                 smartTouch.do()
@@ -222,17 +217,13 @@ class Controller:
         s = f.read()
         state = eval(s)
 
-        min_x, max_x = None, None
-        min_y, max_y = None, None
+        min_x, max_x = MAXP, 0
+        min_y, max_y = MAXP, 0
         for cell in state:
             x = cell//MAXP
             y = cell % MAXP
-            if min_x is None:
-                min_x, max_x = x, x
-                min_y, max_y = y, y
-            else:
-                min_x, max_x = min(x, min_x), max(x, max_x)
-                min_y, max_y = min(y, min_y), max(y, max_y)
+            min_x, max_x = min(x, min_x), max(x, max_x)
+            min_y, max_y = min(y, min_y), max(y, max_y)
         w = min(16, max_x - min_x + 1)
         h = min(16, max_y - min_y + 1)
         size = max(w, h)
@@ -244,7 +235,7 @@ class Controller:
             x = cell//MAXP
             y = cell % MAXP
             fb.fill_rect((x-min_x)*step, (y-min_y)*step, step, step, liblcd.BLACK)
-        button.setText("")
+        button.setText(FileName)
         button.setImage(fb, real_size, real_size)
 
     def visibleRelativeCells(self, corner, alive):
