@@ -12,15 +12,11 @@ WHITE_1_BYTE = 0xff
 
 
 def initBoard():
-    b = bytearray([0xff] * 480 * 2 * 4)
-    for y in range(80):
-        LCD.ShowBuffer(0, 479, 4*y, 4*y+3, b)
+    LCD.Clear()
 
 
 def clearGameBoard():
-    b = bytearray([0xff] * 320 * 2 * 4)
-    for y in range(80):
-        LCD.ShowBuffer(0, 319, 4*y, 4*y+3, b)
+    LCD.FillBuffer(0, 319, 0, 319, liblcd.WHITE)
 
 
 def Fill(x1, x2, y1, y2, color1Byte):
