@@ -462,17 +462,40 @@ class Button(object):
         fb, buf = self._getFB()
         self._drawSurface(fb)
         self._drawEdge(fb)
-        if self.image and self.text:
-            img, img_w, img_h = self.image
+        text_lines = []
+        text_x, text_y, text_w, text_h = 0, 0, 0, 0
+        img_fb = None
+        img_x, img_y, img_w, img_h = 0, 0, 0, 0
+        
+        if self.text:
+            text_lines = self.text.split('\n')
+            text_w = max(len(line) for line in text_lines)*8
+            text_h = len(text_lines)*8
+            text_x = self.box.width//2 - text_w//2
+            text_y = self.box.height//2 - text_h//2
+        if self.image:
+            img_fb, img_w, img_h = self.image
+            img_x = self.box.width//2 - img_w//2
+            img_y = self.box.height//2 - img_h//2
+            
+        if img_fb and text_lines:
+            img, img_w, img_h = self.image            
             PADDING = 4
-            total_w = img_w + len(self.text)*8 + PADDING
-            fb.text(self.text, max(0, self.box.width//2 - total_w//2), self.box.height // 2 - 4, self.color_text)
-            fb.blit(img, max(0, self.box.width//2 + total_w//2 - img_w), max(0, self.box.height//2 - img_h//2))
-        elif self.image:
-            img, img_w, img_h = self.image
-            fb.blit(img, max(0, self.box.width//2 - img_w//2), max(0, self.box.height//2 - img_h//2))
-        elif self.text:
-            fb.text(self.text, max(0, self.box.width//2 - len(self.text)*4), self.box.height // 2 - 4, self.color_text)
+            horizontal_alignment_padding = self.box.width - img_w - text_w
+            vertical_alignment_padding = self.box.height - img_h - text_h
+            if horizontal_alignment_padding > vertical_alignment_padding:
+                text_x = self.box.width//2 - (text_w+img_w+PADDING)//2
+                img_x = text_x + text_w + PADDING
+            else:
+                text_y = self.box.height//2 - (text_h+img_h+PADDING)//2
+                img_y = text_y + text_h + PADDING
+        if img_fb:
+            fb.blit(img_fb, img_x, img_y)
+        if text_lines:
+            line_no = 0
+            for line in text_lines:
+                fb.text(self.text, text_x, text_y+8*line_no, self.color_text)
+                line_no += 1
         self.screen.ShowBufferAtBox(self.box, buf)
 
     def _drawPressed(self):
