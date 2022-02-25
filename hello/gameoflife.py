@@ -4,6 +4,7 @@ import liblcd
 import os
 import time
 import gc
+import sys
 
 LCD = liblcd.LCD_3inch5()
 smartTouch = liblcd.SmartTouch(LCD, yCorrection=-10)
@@ -93,14 +94,27 @@ class Controller:
         self.playing = False
         self.lastPlayMs = time.ticks_ms()
 
-        self.FindSaveFile()
+        self.findSaveFile()
+        self.setSaveButtonText()
 
-    def FindSaveFile(self):
+    def findSaveFile(self):
         dirs = os.listdir()
         if FolderName not in dirs:
             os.mkdir(FolderName)
-        print(os.listdir(FolderName))
+        fnames = sorted(os.listdir(FolderName))
+        self.saveFileNumber = 0
+        if fnames:
+            lastName = fnames[-1]
+            if len(lastName) < 3 or not lastName[:3].isdigit():
+                print('ERROR: file name should start with number:', lastName)
+                sys.exit()
+            self.saveFileNumber = int(lastName[:3]) +1
 
+    def saveFileName(self):
+        return '{:03d}'.format(self.saveFileNumber)
+
+    def setSaveButtonText(self):
+        self.bSave.setText('SAVE\n' + self.saveFileName())
 
     def resetButtonTexts(self):
         self.bStartStop.setText(">>")
@@ -109,8 +123,7 @@ class Controller:
         self.bReset.setText("RESET")
         self.bLoad.setText("LOAD")
         self.UpdateLoadButton(self.bLoad)
-        
-        self.bSave.setText("SAVE")
+        self.setSaveButtonText()
         self.bMinus.setText("---")
         self.bPlus.setText("+++")
 
@@ -188,11 +201,10 @@ class Controller:
             self.fillCell(cell, self.stampDead)
 
     def Save(self):
-        dirs = os.listdir()
-        if FolderName not in dirs:
-            os.mkdir(FolderName)
-        f = open(FolderName + '/' + FileName, 'w')
+        f = open(FolderName + '/' + self.saveFileName(), 'w')
         f.write(repr(self.alive))
+        self.saveFileNumber += 1
+        self.setSaveButtonText()
 
     def saveStartState(self):
         self.startState = self.alive.copy()
@@ -209,7 +221,7 @@ class Controller:
         f = open(FolderName + '/' + FileName)
         s = f.read()
         state = eval(s)
-        
+
         min_x, max_x = None, None
         min_y, max_y = None, None
         for cell in state:
