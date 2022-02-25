@@ -420,6 +420,7 @@ class Button(object):
         self.box = Box(int(box.x1), int(box.x2), int(box.y1), int(box.y2))
 
         self.text = text
+        self.image = None
         self.color_surface = color_surface
         self.color_surface_pressed = color_surface_pressed
         self.color_text = color_text
@@ -433,6 +434,14 @@ class Button(object):
 
     def setText(self, text):
         self.text = text
+        self.draw()
+
+    def setImage(self, fb, w, h):
+        self.image = (fb, w, h)
+        self.draw()
+
+    def unsetImage(self):
+        self.image = None
         self.draw()
 
     def _getFB(self):
@@ -453,7 +462,17 @@ class Button(object):
         fb, buf = self._getFB()
         self._drawSurface(fb)
         self._drawEdge(fb)
-        if self.text:
+        if self.image and self.text:
+            img, img_w, img_h = self.image
+            PADDING = 4
+            total_w = img_w + len(self.text)*8 + PADDING
+            print (total_w)
+            fb.text(self.text, max(0, self.box.width//2 - total_w//2), self.box.height // 2 - 4, self.color_text)
+            fb.blit(img, max(0, self.box.width//2 + total_w//2 - img_w), max(0, self.box.height//2 - img_h//2))
+        elif self.image:
+            img, img_w, img_h = self.image
+            fb.blit(img, max(0, self.box.width//2 - img_w//2), max(0, self.box.height//2 - img_h//2))
+        elif self.text:
             fb.text(self.text, max(0, self.box.width//2 - len(self.text)*4), self.box.height // 2 - 4, self.color_text)
         self.screen.ShowBufferAtBox(self.box, buf)
 
