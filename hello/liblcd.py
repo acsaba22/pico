@@ -411,8 +411,8 @@ class Button(object):
 
     def __init__(self, screen, box,
                  text="",
-                 color_surface=RGB_FB(128, 128, 128),
-                 color_surface_pressed=RGB_FB(160, 160, 160),
+                 color_surface=RGB_FB(160, 160, 160),
+                 color_surface_pressed=RGB_FB(128, 128, 128),
                  color_text=RGB_FB(0, 0, 0)):
         self._state = 0
 
@@ -453,7 +453,7 @@ class Button(object):
         pass
 
     def _drawSurface(self, fb):
-        if self._state:
+        if not self._state:
             fb.fill_rect(0, 0, self.box.width, self.box.height, self.color_surface)
         else:
             fb.fill_rect(0, 0, self.box.width, self.box.height, self.color_surface_pressed)
