@@ -466,7 +466,6 @@ class Button(object):
             img, img_w, img_h = self.image
             PADDING = 4
             total_w = img_w + len(self.text)*8 + PADDING
-            print (total_w)
             fb.text(self.text, max(0, self.box.width//2 - total_w//2), self.box.height // 2 - 4, self.color_text)
             fb.blit(img, max(0, self.box.width//2 + total_w//2 - img_w), max(0, self.box.height//2 - img_h//2))
         elif self.image:
