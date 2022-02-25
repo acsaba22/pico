@@ -43,7 +43,9 @@ H = 320
 MAXP = 10000
 MinEditZoom = 4
 
+FolderName = 'life'
 FileName = '004'
+
 
 class Controller:
 
@@ -56,15 +58,14 @@ class Controller:
         Fill(320, 480, 160, 160, BLACK_1_BYTE)
         Fill(320, 480, 240, 240, BLACK_1_BYTE)
 
-
         self.bStartStop = liblcd.Button(
             LCD, liblcd.Box(322, 399, 0, 79), text=">>")
         self.bNext = liblcd.Button(
             LCD, liblcd.Box(401, 479, 0, 79), text=">")
-        self.bClear = liblcd.Button(
-            LCD, liblcd.Box(322, 399, 81, 159), text="CLEAR")
-        self.bRandom = liblcd.Button(
-            LCD, liblcd.Box(401, 479, 81, 159), text="RANDOM")
+        self.bClearRandom = liblcd.Button(
+            LCD, liblcd.Box(322, 399, 81, 159), text="RANDOM")
+        self.bReset = liblcd.Button(
+            LCD, liblcd.Box(401, 479, 81, 159), text="RESET")
         self.bLoad = liblcd.Button(
             LCD, liblcd.Box(322, 399, 161, 239), text="LOAD")
         self.bSave = liblcd.Button(
@@ -74,7 +75,11 @@ class Controller:
         self.bPlus = liblcd.Button(
             LCD, liblcd.Box(401, 479, 241, 319), text="+++")
 
+        self.loadButtons = [
+            self.bStartStop, self.bNext, self.bClearRandom, self.bReset, self.bLoad, self.bSave]
+
         self.alive = set()
+        self.startState = set()
 
         self.setZoom(5)
 
@@ -88,6 +93,29 @@ class Controller:
         self.moving = False
         self.playing = False
         self.lastPlayMs = time.ticks_ms()
+
+        self.FindSaveFile()
+
+    def FindSaveFile(self):
+        dirs = os.listdir()
+        if FolderName not in dirs:
+            os.mkdir(FolderName)
+        print(os.listdir(FolderName))
+
+
+    def resetButtonTexts(self):
+        self.bStartStop.setText(">>")
+        self.bNext.setText(">")
+        self.setClearRandomButtonText()
+        self.bReset.setText("RESET")
+        self.bLoad.setText("LOAD")
+        self.bSave.setText("SAVE")
+        self.bMinus.setText("---")
+        self.bPlus.setText("+++")
+
+    def loadPressed(self):
+        os.listdir(FolderName)
+
 
     # 0..6
     # min edit 4
@@ -160,16 +188,21 @@ class Controller:
 
     def Save(self):
         dirs = os.listdir()
-        if 'life' not in dirs:
-            os.mkdir('life')
-        f = open('life/'+FileName, 'w')
+        if FolderName not in dirs:
+            os.mkdir(FolderName)
+        f = open(FolderName + '/' + FileName, 'w')
         f.write(repr(self.alive))
 
+    def saveStartState(self):
+        self.startState = self.alive.copy()
+
     def Load(self):
-        f = open('life/'+FileName)
+        f = open(FolderName + '/' + FileName)
         s = f.read()
         self.alive = eval(s)
         self.drawBoard()
+        self.setClearRandomButtonText()
+        self.saveStartState()
 
     def visibleRelativeCells(self, corner, alive):
         ret = set()
@@ -233,6 +266,8 @@ class Controller:
             if self.touchedCell != -1:
                 self.flip(self.touchedCell)
                 self.removeTouchSelection()
+                self.setClearRandomButtonText()
+                self.saveStartState()
             return
 
         currentCell = -1
@@ -250,7 +285,7 @@ class Controller:
         for cell in self.alive:
             for d in neighs:
                 cell2 = cell+d
-                neighNum[cell2] = neighNum.get(cell2, 0)+1 # type: ignore
+                neighNum[cell2] = neighNum.get(cell2, 0)+1  # type: ignore
 
         nextGen = set()
         same = True
@@ -307,13 +342,13 @@ class Controller:
                 self.lastPlayMs = ts
 
     def generateRandom(self):
-        k = 10
+        k = 8
         chance = 40
 
         self.stop()
         self.alive = set()
         x = self.cornerCell//MAXP + self.n//2
-        y =self.cornerCell%MAXP + self.n//2
+        y = self.cornerCell % MAXP + self.n//2
         a = k//2
         b = k - a
         for xd in range(-a, b):
@@ -324,6 +359,27 @@ class Controller:
                     self.alive.add((x+xd)*MAXP+y+yd)
 
         self.drawBoard()
+
+    def setClearRandomButtonText(self):
+        if self.alive:
+            self.bClearRandom.setText('CLEAR')
+        else:
+            self.bClearRandom.setText('RANDOM')
+
+    def clearOrRandom(self):
+        if self.bClearRandom.text == 'CLEAR':
+            self.alive = set()
+            self.drawBoard()
+        else:
+            self.generateRandom()
+        self.setClearRandomButtonText()
+        self.saveStartState()
+
+    def reset(self):
+        self.stop()
+        self.alive = self.startState.copy()
+        self.drawBoard()
+        self.setClearRandomButtonText()
 
     def do(self):
         touch = smartTouch.get()
@@ -340,11 +396,11 @@ class Controller:
             self.next()
         if self.bStartStop.do(touch):
             self.startStop()
-        if self.bClear.do(touch):
-            self.alive = set()
-            self.drawBoard()
-        if self.bRandom.do(touch):
-            self.generateRandom()
+        if self.bClearRandom.do(touch):
+            self.clearOrRandom()
+        if self.bReset.do(touch):
+            self.reset()
+            pass
 
         self.playIfStarted()
 
