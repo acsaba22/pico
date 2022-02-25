@@ -35,8 +35,39 @@ MAXP = 10000
 MinEditZoom = 4
 
 FolderName = 'life'
-FileName = '004'
+FileName = '009'
 
+class Persistence:
+    def __init__(self, saveButton):
+        self.bSave = saveButton
+        self._findSaveFile()
+        self._setSaveButtonText()
+        pass
+
+    def _findSaveFile(self):
+        dirs = os.listdir()
+        if FolderName not in dirs:
+            os.mkdir(FolderName)
+        fnames = sorted(os.listdir(FolderName))
+        self.saveFileNumber = 0
+        if fnames:
+            lastName = fnames[-1]
+            if len(lastName) < 3 or not lastName[:3].isdigit():
+                print('ERROR: file name should start with number:', lastName)
+                sys.exit()
+            self.saveFileNumber = int(lastName[:3]) +1
+
+    def _saveFileName(self):
+        return '{:03d}'.format(self.saveFileNumber)
+
+    def _setSaveButtonText(self):
+        self.bSave.setText('SAVE\n' + self._saveFileName())
+
+    def Save(self, data):
+        f = open(FolderName + '/' + self._saveFileName(), 'w')
+        f.write(data)
+        self.saveFileNumber += 1
+        self._setSaveButtonText()
 
 class Controller:
 
@@ -87,28 +118,8 @@ class Controller:
         self.playing = False
         self.lastPlayMs = time.ticks_ms()
 
-        self.findSaveFile()
-        self.setSaveButtonText()
+        self.persistence = Persistence(self.bSave)
         self.loadPage = 0
-
-    def findSaveFile(self):
-        dirs = os.listdir()
-        if FolderName not in dirs:
-            os.mkdir(FolderName)
-        fnames = sorted(os.listdir(FolderName))
-        self.saveFileNumber = 0
-        if fnames:
-            lastName = fnames[-1]
-            if len(lastName) < 3 or not lastName[:3].isdigit():
-                print('ERROR: file name should start with number:', lastName)
-                sys.exit()
-            self.saveFileNumber = int(lastName[:3]) +1
-
-    def saveFileName(self):
-        return '{:03d}'.format(self.saveFileNumber)
-
-    def setSaveButtonText(self):
-        self.bSave.setText('SAVE\n' + self.saveFileName())
 
     def resetButtonTexts(self):
         self.bStartStop.setText(">>")
@@ -117,7 +128,7 @@ class Controller:
         self.bReset.setText("RESET")
         self.bLoad.setText("LOAD")
         self.UpdateLoadButton(self.bLoad)
-        self.setSaveButtonText()
+        self.persistence._setSaveButtonText()
         self.bMinus.setText("---")
         self.bPlus.setText("+++")
 
@@ -195,11 +206,6 @@ class Controller:
         else:
             self.fillCell(cell, self.stampDead)
 
-    def Save(self):
-        f = open(FolderName + '/' + self.saveFileName(), 'w')
-        f.write(repr(self.alive))
-        self.saveFileNumber += 1
-        self.setSaveButtonText()
 
     def saveStartState(self):
         self.startState = self.alive.copy()
@@ -414,6 +420,9 @@ class Controller:
         self.alive = self.startState.copy()
         self.drawBoard()
         self.setClearRandomButtonText()
+
+    def Save(self):
+        self.persistence.Save(repr(self.alive))
 
     def do(self):
         touch = smartTouch.get()
