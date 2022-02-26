@@ -184,7 +184,7 @@ class LCD_3inch5():
             for _ in range((x2-x1+1)):
                 self.spi.write(c)
         self.cs(1)
-        
+
     def FillBufferAtBox(self, box, color):
         self.FillBuffer(box.x1, box.x2, box.y1, box.y2, color)
 
@@ -413,7 +413,8 @@ class Button(object):
                  text="",
                  color_surface=RGB_FB(160, 160, 160),
                  color_surface_pressed=RGB_FB(128, 128, 128),
-                 color_text=RGB_FB(0, 0, 0)):
+                 color_text=RGB_FB(0, 0, 0),
+                 callback=lambda: None):
         self._state = 0
 
         self.screen = screen
@@ -424,6 +425,7 @@ class Button(object):
         self.color_surface = color_surface
         self.color_surface_pressed = color_surface_pressed
         self.color_text = color_text
+        self.callback = callback
         self.draw()
 
     def draw(self):
@@ -464,7 +466,7 @@ class Button(object):
         text_x, text_y, text_w, text_h = 0, 0, 0, 0
         img_fb = None
         img_x, img_y, img_w, img_h = 0, 0, 0, 0
-        
+
         if self.text:
             text_lines = self.text.split('\n')
             text_w = max(len(line) for line in text_lines)*8
@@ -475,9 +477,9 @@ class Button(object):
             img_fb, img_w, img_h = self.image
             img_x = self.box.width//2 - img_w//2
             img_y = self.box.height//2 - img_h//2
-            
+
         if img_fb and text_lines:
-            img, img_w, img_h = self.image            
+            img, img_w, img_h = self.image
             PADDING = 4
             horizontal_alignment_padding = self.box.width - img_w - text_w
             vertical_alignment_padding = self.box.height - img_h - text_h
@@ -525,12 +527,9 @@ class Button(object):
                 self._setState(0)
         elif self._state == 1:
             self._setState(0)
-            self.doPressed()
+            self.callback()
             return True
         return False
-
-    def doPressed(self):
-        pass
 
 class Button3D(Button):
     def __init__(self, screen, box,

@@ -35,14 +35,86 @@ MAXP = 10000
 MinEditZoom = 4
 
 FolderName = 'life'
-FileName = '009'
+
+
+class Layout:
+    def Init(self):
+        LCD.Clear()
+        Fill(320, 321, 0, 319, BLACK_1_BYTE)
+
+        Fill(400, 400, 0, 319, BLACK_1_BYTE)
+        Fill(320, 480, 80, 80, BLACK_1_BYTE)
+        Fill(320, 480, 160, 160, BLACK_1_BYTE)
+        Fill(320, 480, 240, 240, BLACK_1_BYTE)
+
+        self.boxes = [
+            liblcd.Box(322, 399, 0, 79),
+            liblcd.Box(401, 479, 0, 79),
+            liblcd.Box(322, 399, 81, 159),
+            liblcd.Box(401, 479, 81, 159),
+            liblcd.Box(322, 399, 161, 239),
+            liblcd.Box(401, 479, 161, 239),
+            liblcd.Box(322, 399, 241, 319),
+            liblcd.Box(401, 479, 241, 319)
+        ]
+
+    # 0..7
+    def makeButton(self, boxNumber, text, callback=lambda: None):
+        return liblcd.Button(LCD, self.boxes[boxNumber], text=text, callback=callback)
+
+
+layout = Layout()
+
+def UpdateLoadButton(button, fileName):
+    f = open(FolderName + '/' + fileName)
+    s = f.read()
+    state = eval(s)
+
+    min_x, max_x = MAXP, 0
+    min_y, max_y = MAXP, 0
+    for cell in state:
+        x = cell//MAXP
+        y = cell % MAXP
+        min_x, max_x = min(x, min_x), max(x, max_x)
+        min_y, max_y = min(y, min_y), max(y, max_y)
+    if not state:
+        min_x = 0
+        min_y = 0
+        max_x = 3
+        max_y = 3
+    w = min(16, max_x - min_x + 1)
+    h = min(16, max_y - min_y + 1)
+    size = max(w, h)
+    step = 32//size
+    real_size = size * step
+    buf = bytearray([0xFF] * real_size*real_size*2)
+    fb = framebuf.FrameBuffer(buf, real_size, real_size, framebuf.RGB565)
+    for cell in state:
+        x = cell//MAXP
+        y = cell % MAXP
+        fb.fill_rect((x-min_x)*step, (y-min_y) *
+                        step, step, step, liblcd.BLACK)
+    button.setImage(fb, real_size, real_size)
+
 
 class Persistence:
     def __init__(self, saveButton):
         self.bSave = saveButton
         self._findSaveFile()
         self._setSaveButtonText()
-        pass
+
+        self.isLoading = False
+        self.page = 0
+        self.pageNum = -1
+
+        self.fileButtons = []
+        self.fileNames = []
+
+    def createButtons(self):
+        for i in range(6):
+            self.fileButtons.append(layout.makeButton(i, ''))
+        self.bPrevPage = layout.makeButton(6, '', callback=self.prevPage)
+        self.bNextPage = layout.makeButton(7, '', callback=self.nextPage)
 
     def _findSaveFile(self):
         dirs = os.listdir()
@@ -55,7 +127,7 @@ class Persistence:
             if len(lastName) < 3 or not lastName[:3].isdigit():
                 print('ERROR: file name should start with number:', lastName)
                 sys.exit()
-            self.saveFileNumber = int(lastName[:3]) +1
+            self.saveFileNumber = int(lastName[:3]) + 1
 
     def _saveFileName(self):
         return '{:03d}'.format(self.saveFileNumber)
@@ -69,38 +141,73 @@ class Persistence:
         self.saveFileNumber += 1
         self._setSaveButtonText()
 
+    def renderButtons(self):
+        for i in range(6):
+            idx = i+self.page*6
+            if idx < len(self.fileNames):
+                fName = self.fileNames[idx]
+                self.fileButtons[i].setText(fName)
+                UpdateLoadButton(self.fileButtons[i], fName)
+            else:
+                self.fileButtons[i].setText('')
+                self.fileButtons[i].unsetImage()
+        self.bPrevPage.setText('<<<' if 0 < self.page else '')
+        self.bNextPage.setText('>>>' if self.page < self.pageNum-1 else '')
+
+    def startLoad(self):
+        self.isLoading = True
+        self.fileNames = sorted(os.listdir(FolderName))
+        self.pageNum = (len(self.fileNames)+5) // 6
+        if not self.fileButtons:
+            self.createButtons()
+        self.renderButtons()
+
+    def nextPage(self):
+        if self.page < self.pageNum-1:
+            self.page += 1
+        self.renderButtons()
+
+    def prevPage(self):
+        if 0 < self.page:
+            self.page -= 1
+        self.renderButtons()
+
+    def stopLoading(self):
+        self.isLoading = False
+        for i in range(6):
+            self.fileButtons[i].unsetImage()
+            self.fileButtons[i].setText('')
+
+    def do(self, touch):
+        if self.isLoading:
+            if touch and touch[0] < 320:
+                self.stopLoading()
+                return 'CANCEL'
+            self.bPrevPage.do(touch)
+            self.bNextPage.do(touch)
+            for i in range(6):
+                if self.fileButtons[i].do(touch):
+                    if self.fileButtons[i].text:
+                        ret = self.fileButtons[i].text
+                        self.stopLoading()
+                        return ret
+        return None
+
 class Controller:
 
     def __init__(self):
-        LCD.Clear()
-        Fill(320, 321, 0, 319, BLACK_1_BYTE)
+        layout.Init()
 
-        Fill(400, 400, 0, 319, BLACK_1_BYTE)
-        Fill(320, 480, 80, 80, BLACK_1_BYTE)
-        Fill(320, 480, 160, 160, BLACK_1_BYTE)
-        Fill(320, 480, 240, 240, BLACK_1_BYTE)
+        self.bStartStop = layout.makeButton(0, text=">>")
+        self.bNext = layout.makeButton(1, text=">")
+        self.bClearRandom = layout.makeButton(2, text="RANDOM")
+        self.bReset = layout.makeButton(3, text="RESET")
+        self.bLoad = layout.makeButton(4, text="LOAD")
+        self.bSave = layout.makeButton(5, text="SAVE")
+        self.bMinus = layout.makeButton(6, text="---")
+        self.bPlus = layout.makeButton(7, text="+++")
 
-        self.bStartStop = liblcd.Button(
-            LCD, liblcd.Box(322, 399, 0, 79), text=">>")
-        self.bNext = liblcd.Button(
-            LCD, liblcd.Box(401, 479, 0, 79), text=">")
-        self.bClearRandom = liblcd.Button(
-            LCD, liblcd.Box(322, 399, 81, 159), text="RANDOM")
-        self.bReset = liblcd.Button(
-            LCD, liblcd.Box(401, 479, 81, 159), text="RESET")
-        self.bLoad = liblcd.Button(
-            LCD, liblcd.Box(322, 399, 161, 239), text="LOAD")
-        self.UpdateLoadButton(self.bLoad)
-
-        self.bSave = liblcd.Button(
-            LCD, liblcd.Box(401, 479, 161, 239), text="SAVE")
-        self.bMinus = liblcd.Button(
-            LCD, liblcd.Box(322, 399, 241, 319), text="---")
-        self.bPlus = liblcd.Button(
-            LCD, liblcd.Box(401, 479, 241, 319), text="+++")
-
-        self.loadButtons = [
-            self.bStartStop, self.bNext, self.bClearRandom, self.bReset, self.bLoad, self.bSave]
+        self.persistence = Persistence(self.bSave)
 
         self.alive = set()
         self.startState = set()
@@ -118,24 +225,15 @@ class Controller:
         self.playing = False
         self.lastPlayMs = time.ticks_ms()
 
-        self.persistence = Persistence(self.bSave)
-        self.loadPage = 0
-
     def resetButtonTexts(self):
         self.bStartStop.setText(">>")
         self.bNext.setText(">")
         self.setClearRandomButtonText()
         self.bReset.setText("RESET")
         self.bLoad.setText("LOAD")
-        self.UpdateLoadButton(self.bLoad)
         self.persistence._setSaveButtonText()
         self.bMinus.setText("---")
         self.bPlus.setText("+++")
-
-    def loadPressed(self):
-        fnames = sorted(os.listdir(FolderName))
-        self.loadPage
-
 
     # 0..6
     # min edit 4
@@ -206,43 +304,35 @@ class Controller:
         else:
             self.fillCell(cell, self.stampDead)
 
-
     def saveStartState(self):
         self.startState = self.alive.copy()
 
-    def Load(self):
-        f = open(FolderName + '/' + FileName)
+    def loadFile(self, fileName):
+        f = open(FolderName + '/' + fileName)
         s = f.read()
         self.alive = eval(s)
+
+        # TODO set middle to the middle of the image
+        cornerX = MAXP
+        cornerY = MAXP
+        for cell in self.alive:
+            x = cell//MAXP
+            y = cell%MAXP
+            if x < cornerX:
+                cornerX = x
+            if y < cornerY:
+                cornerY = y
+        if cornerX == MAXP or cornerY == MAXP:
+            cornerX = MAXP//2
+            cornery = MAXP//2
+        self.cornerCell = cornerX*MAXP + cornerY
+
         self.drawBoard()
         self.setClearRandomButtonText()
         self.saveStartState()
 
-    def UpdateLoadButton(self, button):
-        f = open(FolderName + '/' + FileName)
-        s = f.read()
-        state = eval(s)
-
-        min_x, max_x = MAXP, 0
-        min_y, max_y = MAXP, 0
-        for cell in state:
-            x = cell//MAXP
-            y = cell % MAXP
-            min_x, max_x = min(x, min_x), max(x, max_x)
-            min_y, max_y = min(y, min_y), max(y, max_y)
-        w = min(16, max_x - min_x + 1)
-        h = min(16, max_y - min_y + 1)
-        size = max(w, h)
-        step = 32//size
-        real_size = size * step
-        buf = bytearray([0xFF] * real_size*real_size*2)
-        fb = framebuf.FrameBuffer(buf, real_size, real_size, framebuf.RGB565)
-        for cell in state:
-            x = cell//MAXP
-            y = cell % MAXP
-            fb.fill_rect((x-min_x)*step, (y-min_y)*step, step, step, liblcd.BLACK)
-        button.setText(FileName)
-        button.setImage(fb, real_size, real_size)
+    def Load(self):
+        self.persistence.startLoad()
 
     def visibleRelativeCells(self, corner, alive):
         ret = set()
@@ -382,7 +472,7 @@ class Controller:
                 self.lastPlayMs = ts
 
     def generateRandom(self):
-        k = 8
+        k = 7
         chance = 40
 
         self.stop()
@@ -427,13 +517,20 @@ class Controller:
     def do(self):
         touch = smartTouch.get()
 
+        if self.persistence.isLoading:
+            fName = self.persistence.do(touch)
+            if fName:
+                self.resetButtonTexts()
+                if fName != 'CANCEL':
+                    self.loadFile(fName)
+            return
+
         if self.bPlus.do(touch):
             self.zoomIn()
         if self.bMinus.do(touch):
             self.zoomOut()
         if self.bSave.do(touch):
             self.Save()
-            self.UpdateLoadButton(self.bLoad)
         if self.bLoad.do(touch):
             self.Load()
         if self.bNext.do(touch):
