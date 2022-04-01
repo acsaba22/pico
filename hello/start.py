@@ -15,6 +15,8 @@ def main():
     bMandel2 = liblcd.Button(screen, liblcd.Box(130, 200, 210, 250), "mandel 2")
     bMandel3 = liblcd.Button(screen, liblcd.Box(130, 200, 160, 200), "mandel 3")
     bMandel4 = liblcd.Button(screen, liblcd.Box(130, 200, 110, 150), "mandel Z")
+    bInstall = liblcd.Button(screen, liblcd.Box(250, 400, 10, 90), "install")
+    bUninstall = liblcd.Button(screen, liblcd.Box(250, 400, 110, 120), "uninstall")
     bExit = liblcd.Button(screen, liblcd.Box(250, 400, 150, 270), "exit")
     touch = liblcd.SmartTouch(screen)
     while True:
@@ -49,6 +51,13 @@ def main():
         if bMandel4.do(t):
             import z_mandelbrot as prog
             prog.main()
+        if bInstall.do(t):
+            import os
+            os.rename('start.py', 'main.py')
+        if bUninstall.do(t):
+            import os
+            os.rename('main.py', 'start.py')
+            return
         if bExit.do(t):
             return
         time.sleep(0.01)
