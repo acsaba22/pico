@@ -34,7 +34,7 @@ def mandelbrot(x, y):
 def draw_mandelbrot(lcd):
     zoom = 0.004
     zoom = 0.01
-    step = 4
+    step = 1
     offset = (0*-240, 0)
     zs = zoom*step
     buffer = bytearray(480*2)

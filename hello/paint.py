@@ -182,8 +182,7 @@ class LCD_3inch5(framebuf.FrameBuffer):
             Result_list = [X_Point,Y_Point]
             return(Result_list)
 
-if __name__=='__main__':
-
+def main():
     LCD = LCD_3inch5()
     LCD.bl_ctrl(30)
     
@@ -199,5 +198,7 @@ if __name__=='__main__':
 #        time.sleep(0.001)
 
 
+if __name__=='__main__':
+    main()
 
 
