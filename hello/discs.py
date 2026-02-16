@@ -81,6 +81,7 @@ def main():
                     last_touched = i
         elif last_touched >= 0:
             discs[(last_touched+1)%len(discs)].toggleFace()
+            discs[(last_touched+0)%len(discs)].toggleFace()
             discs[(last_touched-1)%len(discs)].toggleFace()
             last_touched = -1
         time.sleep(0.1)

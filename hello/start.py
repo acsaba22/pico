@@ -15,6 +15,7 @@ def main():
     bMandel2 = liblcd.Button(screen, liblcd.Box(130, 200, 210, 250), "mandel 2")
     bMandel3 = liblcd.Button(screen, liblcd.Box(130, 200, 160, 200), "mandel 3")
     bMandel4 = liblcd.Button(screen, liblcd.Box(130, 200, 110, 150), "mandel Z")
+    bDisc = liblcd.Button(screen, liblcd.Box(130, 200, 60, 100), "Disc")
     bInstall = liblcd.Button(screen, liblcd.Box(250, 400, 10, 90), "install")
     bUninstall = liblcd.Button(screen, liblcd.Box(250, 400, 110, 120), "uninstall")
     bExit = liblcd.Button(screen, liblcd.Box(250, 400, 150, 270), "exit")
@@ -50,6 +51,9 @@ def main():
             prog.main()
         if bMandel4.do(t):
             import z_mandelbrot as prog
+            prog.main()
+        if bDisc.do(t):
+            import discs as prog
             prog.main()
         if bInstall.do(t):
             import os
