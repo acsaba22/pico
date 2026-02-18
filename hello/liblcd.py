@@ -52,7 +52,7 @@ class LCD_3inch5():
         self.dc(1)
         self.rst(1)
         self.tp_cs(1)
-        self.spi = SPI(1, 60_000_000, sck=Pin(LCD_SCK),
+        self.spi = SPI(1, 60_000_000,  polarity=0, phase=0, sck=Pin(LCD_SCK),
                        mosi=Pin(LCD_MOSI), miso=Pin(LCD_MISO))
 
         self.initDisplay()
@@ -200,26 +200,26 @@ class LCD_3inch5():
 
     def TouchGet(self):
         if self.irq() == 0:
-            self.spi = SPI(1, 5_000_000, sck=Pin(LCD_SCK),
+            self.spi = SPI(1, 5_000_000,  polarity=1, phase=1, sck=Pin(LCD_SCK),
                            mosi=Pin(LCD_MOSI), miso=Pin(LCD_MISO))
             self.tp_cs(0)
             X_Point = 0
             Y_Point = 0
             for i in range(0, 3):
                 self.spi.write(bytearray([0XD0]))
-                Read_date = self.spi.read(2)
+                Read_data = self.spi.read(2)
                 time.sleep_us(10)
-                Y_Point = Y_Point+(((Read_date[0] << 8)+Read_date[1]) >> 3)
+                Y_Point = Y_Point+(((Read_data[0] << 8)+Read_data[1]) >> 3)
 
                 self.spi.write(bytearray([0X90]))
-                Read_date = self.spi.read(2)
-                X_Point = X_Point+(((Read_date[0] << 8)+Read_date[1]) >> 3)
+                Read_data = self.spi.read(2)
+                X_Point = X_Point+(((Read_data[0] << 8)+Read_data[1]) >> 3)
 
             X_Point = X_Point/3
             Y_Point = Y_Point/3
 
             self.tp_cs(1)
-            self.spi = SPI(1, 60_000_000, sck=Pin(LCD_SCK),
+            self.spi = SPI(1, 60_000_000,  polarity=0, phase=0, sck=Pin(LCD_SCK),
                            mosi=Pin(LCD_MOSI), miso=Pin(LCD_MISO))
             X_Point = min(480, max(0, int((X_Point-430)*480/3270)))
             Y_Point = min(320, max(0, 320-int((Y_Point-430)*320/3270)))
