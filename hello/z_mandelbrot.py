@@ -28,7 +28,7 @@ def mandelbrot(x, y):
     step = 0
     while step < MAX_ITERATION and abs(z) < ABS_LIMIT:
         step += 1
-        z = z**2 + c
+        z = z*z + c
     return step
 
 def draw_mandelbrot(lcd):
