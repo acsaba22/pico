@@ -5,7 +5,6 @@ import math
 MAX_ITERATION = 100
 ABS_LIMIT = 100
 
-ABS_LIMIT_SQUARED = ABS_LIMIT*ABS_LIMIT
 rFreq = 3
 gFreq = 5
 bFreq = 8
@@ -27,8 +26,7 @@ def mandelbrot(x, y):
     c = complex(x, y)
     z = complex(0, 0)
     step = 0
-    # while step < MAX_ITERATION and abs(z) < ABS_LIMIT:
-    while step < MAX_ITERATION and (z.imag*z.imag + z.real*z.real) < ABS_LIMI_SQUARED:
+    while step < MAX_ITERATION and abs(z) < ABS_LIMIT:
         step += 1
         z = z*z + c
     return step
