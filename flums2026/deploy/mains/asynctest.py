@@ -41,4 +41,6 @@ async def main():
     jobs.start(timestats.stats.run())
     await jobs.STOP.wait()
 
-jobs.runMain(main())
+
+if __name__ == '__main__':
+    jobs.runMain(main())

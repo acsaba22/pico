@@ -55,7 +55,8 @@ class Timer:
         ret = f"{s} - {percentStr} {formatUs(self.totalTime)} / {self.count} = {formatUs(self.totalTime // max(1, self.count))}"
         return ret
 
-
+def NewTimer(name, parent = None):
+    return Timer(name, parent)
 
 class Stats:
     def __init__(self):
