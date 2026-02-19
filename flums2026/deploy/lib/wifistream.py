@@ -1,6 +1,9 @@
 import network
 import asyncio
 import jobs
+from collections import deque
+
+QUEUE_SIZE = 100
 
 SSID = "pico-test"
 PASSWORD = "12345678"
@@ -54,9 +57,9 @@ class WifiClient:
 
 class Stream:
     def __init__(self):
-        self._sendList = []
+        self._sendQueue = deque((), QUEUE_SIZE)
         self._sendEvent = asyncio.Event()
-        self._recvList = []
+        self._receiveQueue = deque((), QUEUE_SIZE)
 
     def _startJobs(self, reader, writer):
         jobs.start(self._senderTask(writer))
@@ -66,8 +69,8 @@ class Stream:
         while True:
             await self._sendEvent.wait()
             self._sendEvent.clear()
-            while self._sendList:
-                msg = self._sendList.pop(0)
+            while self._sendQueue:
+                msg = self._sendQueue.popleft()
                 writer.write((msg + "\n").encode())
                 await writer.drain()
 
@@ -75,18 +78,24 @@ class Stream:
         while True:
             data = await reader.readline()
             if data == b"":
-                self._recvList.append(None)  # disconnected
+                self._receiveQueue.append(None)  # disconnected
                 break
-            self._recvList.append(data.decode().strip())
+            if len(self._receiveQueue) >= QUEUE_SIZE:
+                print("WARNING: receiveQueue full, dropping message")
+            else:
+                self._receiveQueue.append(data.decode().strip())
 
     def send(self, msg):
-        self._sendList.append(msg)
-        self._sendEvent.set()
+        if len(self._sendQueue) >= QUEUE_SIZE:
+            print("WARNING: sendQueue full, dropping message")
+        else:
+            self._sendQueue.append(msg)
+            self._sendEvent.set()
 
-    def recv(self):
-        if not self._recvList:
+    def receive(self):
+        if not self._receiveQueue:
             return None
-        return self._recvList.pop(0)
+        return self._receiveQueue.popleft()
 
 
 class WifiStream(Stream):
