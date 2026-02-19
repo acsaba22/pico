@@ -11,10 +11,11 @@ def main():
     bLab = liblcd.Button(screen, liblcd.Box(10, 110, 160, 200), "labyrinth")
     bGameOfLife = liblcd.Button(screen, liblcd.Box(10, 110, 210, 250), "GameOfLife")
     bPaint = liblcd.Button(screen, liblcd.Box(10, 110, 260, 300), "paint")
-    bMandel1 = liblcd.Button(screen, liblcd.Box(130, 200, 260, 300), "mandel 1")
-    bMandel2 = liblcd.Button(screen, liblcd.Box(130, 200, 210, 250), "mandel 2")
-    bMandel3 = liblcd.Button(screen, liblcd.Box(130, 200, 160, 200), "mandel 3")
+    bTorpedo  = liblcd.Button(screen, liblcd.Box(130, 200, 10, 50), "Torpedo")
     bMandel4 = liblcd.Button(screen, liblcd.Box(130, 200, 110, 150), "mandel Z")
+    bMandel3 = liblcd.Button(screen, liblcd.Box(130, 200, 160, 200), "mandel 3")
+    bMandel2 = liblcd.Button(screen, liblcd.Box(130, 200, 210, 250), "mandel 2")
+    bMandel1 = liblcd.Button(screen, liblcd.Box(130, 200, 260, 300), "mandel 1")
     bDisc = liblcd.Button(screen, liblcd.Box(130, 200, 60, 100), "Disc")
     bInstall = liblcd.Button(screen, liblcd.Box(250, 400, 10, 90), "install")
     bUninstall = liblcd.Button(screen, liblcd.Box(250, 400, 110, 120), "uninstall")
@@ -54,6 +55,9 @@ def main():
             prog.main()
         if bDisc.do(t):
             import discs as prog
+            prog.main()
+        if bTorpedo.do(t):
+            import torpedo as prog
             prog.main()
         if bInstall.do(t):
             import os
