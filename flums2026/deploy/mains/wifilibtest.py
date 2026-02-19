@@ -4,7 +4,7 @@ import wifistream
 import jobs
 import timestats
 
-MODE = wifistream.Mode.CLIENT
+MODE = wifistream.Mode.SERVER
 comm = wifistream.WifiStream(MODE)
 
 SERVER = wifistream.Mode.SERVER
@@ -14,7 +14,10 @@ led = machine.Pin("LED", machine.Pin.OUT)
 async def blinkTask():
     while True:
         led.toggle()
-        await asyncio.sleep_ms(500 if MODE == SERVER else 1000)
+        time = 1000 if comm.connected else 100
+        if MODE != SERVER:
+            time *= 2
+        await asyncio.sleep_ms(1000 if comm.connected else 100)
 
 async def commTask():
     await comm.connectAndStartJobs()
