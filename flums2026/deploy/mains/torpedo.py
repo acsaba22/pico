@@ -2,6 +2,11 @@ import framebuf
 import liblcd
 import random
 import time
+import jobs
+from blinkstatus import BlinkStatus
+import timestats
+from timestats import NewTimer
+import asyncio
 
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
@@ -311,6 +316,7 @@ class AIOpponent(Player):
         touch.do()
         return (x,y)
 
+<<<<<<< HEAD
 
 class NetworkLocalPlayer(Player):
     def __init__(self, lcd):
@@ -382,21 +388,25 @@ class NetworkRemoteOpponent(Player):
             return None
         return (x,y)
 
-def main():
-    screen = liblcd.LCD_3inch5()
-    screen.BackLight(10)
-    screen.Clear()
-    touch = liblcd.SmartTouch(screen)
-    last_maybe_square = None
+initTimer = NewTimer("main.Init")
 
-    opponent = AIOpponent(screen)
-    # opponent = NetworkOpponent(screen)
-    player = Human(screen)
+async def mainTorpedo():
+    with initTimer:
+        screen = liblcd.LCD_3inch5()
+        screen.BackLight(10)
+        screen.Clear()
+        touch = liblcd.SmartTouch(screen)
+        last_maybe_square = None
 
-    players = [opponent, player]
+        player = Human(screen)
+        opponent = AIOpponent(screen)
 
-    players[-1].show()
+        players = [opponent, player]
+
+        players[-1].show()
+
     while True:
+        await asyncio.sleep_ms(0)
         clicked = players[0].myStep(touch, players[-1].board)
         if clicked:
             x, y = clicked
@@ -404,10 +414,16 @@ def main():
             print (shot_result)
             players[-1].applyShotResult(shot_result)
             if shot_result.valid:
-                time.sleep(1)
+                await asyncio.sleep(1)
                 players = [players[1], players[0]]
-                players[-1].show()                
+                players[-1].show()
+
+async def main():
+    jobs.start(BlinkStatus().run())
+    # jobs.start(timestats.stats.run())
+    jobs.start(mainTorpedo())
+    await jobs.STOP.wait()
 
 
 if __name__ == '__main__':
-    main()
+    jobs.runMain(main())
