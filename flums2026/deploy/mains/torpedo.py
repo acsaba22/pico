@@ -197,7 +197,7 @@ class Board(object):
                 clicked = self.last_maybe_square
                 self.last_maybe_square.setMaybe(False)
                 self.last_maybe_square = None
-                return clicked
+                return (clicked.x, clicked.y)
         return None
 
     def showLabel(self):
@@ -223,6 +223,11 @@ class Board(object):
                 square.draw()
         self.showLabel()
 
+def getEnemyClick():
+    time.sleep(2)
+    x = random.randint(0, BOARD_WIDTH-1)
+    y = random.randint(0, BOARD_HEIGHT-1)
+    return (x,y)
 
 def main():
     screen = liblcd.LCD_3inch5()
@@ -238,17 +243,24 @@ def main():
     for ship in Ship.randomizeShips():
         self_board.placeShip(ship)
 
+    is_enemys_turn = True
     board_shown = self_board
 
     board_shown.show()
     while True:
-        t = touch.get()
-        clicked = board_shown.checkTouch(t)
+        if is_enemys_turn:
+            touch.do()
+            clicked = getEnemyClick()
+        else:
+            t = touch.get()
+            clicked = board_shown.checkTouch(t)
         if clicked:
-            valid_click = board_shown.shot(clicked.x, clicked.y)
+            x, y = clicked
+            valid_click = board_shown.shot(x, y)
             if valid_click:
                 time.sleep(1)
-                if board_shown == enemy_board:
+                is_enemys_turn = not is_enemys_turn
+                if is_enemys_turn:
                     board_shown = self_board
                 else:
                     board_shown = enemy_board
