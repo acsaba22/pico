@@ -13,6 +13,9 @@ SERVER_IP = "192.168.4.1" # don't touch, should be ap.ifconfig()[0]
 class Mode:
     SERVER = 0
     CLIENT = 1
+    AUTO = 2
+
+AUTO_TIMEOUT_MS = 5000
 
 
 class WifiServer:
@@ -46,14 +49,23 @@ class WifiClient:
         wlan.connect(SSID, PASSWORD)
         self._wlan = wlan
 
-    async def connect(self):
-        while not self._wlan.isconnected():
-            await asyncio.sleep_ms(100)
-        print("Client IP:", self._wlan.ifconfig()[0])
-        reader, writer = await asyncio.open_connection(SERVER_IP, PORT)
-        print("connected to server")
-        return reader, writer
+    def shutdown(self):
+        self._wlan.active(False)
 
+    async def connect(self, timeout_ms=None):
+        elapsed = 0
+        while not self._wlan.isconnected():
+            if timeout_ms is not None and elapsed >= timeout_ms:
+                return False, None, None
+            await asyncio.sleep_ms(100)
+            elapsed += 100
+        print("Client IP:", self._wlan.ifconfig()[0])
+        try:
+            reader, writer = await asyncio.open_connection(SERVER_IP, PORT)
+            print("connected to server")
+            return True, reader, writer
+        except OSError:
+            return False, None, None
 
 class Stream:
     def __init__(self):
@@ -99,21 +111,35 @@ class Stream:
 
 
 class WifiStream(Stream):
-    def __init__(self, mode):
+    def __init__(self, mode = Mode.AUTO):
         super().__init__()
         self.mode = mode
-        self.connected = False
+        self.connected_ = False
         if mode == Mode.SERVER:
             self._server = WifiServer()
         elif mode == Mode.CLIENT:
             self._client = WifiClient()
+        elif mode == Mode.AUTO:
+            self._client = WifiClient()
         else:
             raise ValueError(f"bad mode {mode}")
 
+    def isConnected(self):
+        return self.connected_
+
     async def connectAndStartJobs(self):
-        if self.mode == Mode.SERVER:
+        if self.mode == Mode.AUTO:
+            ok, reader, writer = await self._client.connect(timeout_ms=AUTO_TIMEOUT_MS)
+            if ok:
+                print("AUTO: acting as client")
+            else:
+                print("AUTO: no server found, acting as server")
+                self._client.shutdown()
+                self._server = WifiServer()
+                reader, writer = await self._server.waitForClient()
+        elif self.mode == Mode.SERVER:
             reader, writer = await self._server.waitForClient()
         else:
-            reader, writer = await self._client.connect()
-        self.connected = True
+            _, reader, writer = await self._client.connect()
+        self.connected_ = True
         self._startJobs(reader, writer)
