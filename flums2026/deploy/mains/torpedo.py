@@ -8,8 +8,12 @@ import timestats
 from timestats import NewTimer
 import asyncio
 
+REMOTE_PLAY = False
+
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
+
+comm = wifistream.WifiStream()
 
 class Square(object):
 
@@ -360,6 +364,15 @@ class NetworkRemoteOpponent(Player):
         # SEND (SHOT_RESULT, shot_result)
         pass
 
+async def isFirstPlayer():
+    while True:
+        token = "HANDSHAKE %04x" % random.randint(0,65535)
+        comm.send(token)
+        other_token = await comm.receiveBlocking()
+        if other_token == token:
+            continue
+        return token < other_token:
+
 initTimer = NewTimer("main.Init")
 
 async def mainTorpedo():
@@ -370,10 +383,19 @@ async def mainTorpedo():
         touch = liblcd.SmartTouch(screen)
         last_maybe_square = None
 
-        opponent = AIOpponent(screen)
+        is_first_play = False
+        if REMOTE_PLAY:
+            opponent = NetworkRemoteOpponent(screen)
+            is_first_play = await isFirstPlayer()
+        else:
+            opponent = AIOpponent(screen)
         player = Human(screen)
 
-        players = [opponent, player]
+        if is_first_play:
+            players = [player, opponent]
+        else:
+            players = [opponent, player]
+
 
         players[-1].show()
 
@@ -400,6 +422,7 @@ async def mainTorpedo():
 async def main():
     jobs.start(BlinkStatus().run())
     # jobs.start(timestats.stats.run())
+    jobs.start(comm.connectAndStartJobs())
     jobs.start(mainTorpedo())
     await jobs.STOP.wait()
 
