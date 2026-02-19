@@ -135,20 +135,18 @@ class ShotResult(object):
         self.is_hit = is_hit
         self.is_sunk = is_sunk or set()
 
+    def __repr__(self):
+        return f"({self.x},{self.y}) valid={self.valid} hit={self.is_hit} sunk={self.is_sunk}"
+
 class Board(object):
-    def __init__(self, lcd, text, ships_visible):
+    def __init__(self, lcd, text):
         self.board = [[Square(lcd, x, y) for x in range(BOARD_WIDTH)] for y in range(BOARD_HEIGHT)]
         self.lcd = lcd
         self.text = text
-        self.ships_visible = ships_visible
-        self.ships = []
 
     def placeShip(self, ship):
-        self.ships.append(ship)
-
-        if self.ships_visible:
-            for x, y in ship.getCoords():
-                self.board[y][x].setFace(Square.FACE_SHIP)
+        for x, y in ship.getCoords():
+            self.board[y][x].setFace(Square.FACE_SHIP)
 
     def hasShip(self, x, y):
         for ship in self.ships:
@@ -266,7 +264,7 @@ class Player(object):
 
 class Human(Player):
     def __init__(self, lcd):
-        Player.__init__(self, Board(lcd, "Self", True))
+        Player.__init__(self, Board(lcd, "Self"))
         self.ships = Ship.randomizeShips()
         for ship in self.ships:
             self.board.placeShip(ship)
@@ -302,7 +300,8 @@ class Human(Player):
 
 class AIOpponent(Player):
     def __init__(self, lcd):
-        Player.__init__(self, Board(lcd, "Computer", False))
+        Player.__init__(self, Board(lcd, "Computer"))
+        self.ships = Ship.randomizeShips()
 
     def myStep(self, touch, visible_board):
         time.sleep(1)
@@ -333,6 +332,7 @@ def main():
         if clicked:
             x, y = clicked
             shot_result = players[-1].shot(x, y)
+            print (shot_result)
             players[-1].applyShotResult(shot_result)
             if shot_result.valid:
                 time.sleep(1)
