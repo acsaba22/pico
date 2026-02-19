@@ -198,7 +198,7 @@ class Board(object):
             if not square.isHit():
                 square.setFace(Square.FACE_EMPTY_HIT)
                 valid_hit = True
-        lost = not any(ship.isAlive() for self.ships)
+        lost = not any(ship.isAlive() for ship in self.ships)
         shot_result = ShotResult(x, y, valid_hit, is_hit, is_sunk, lost)
         return shot_result
 
@@ -320,8 +320,6 @@ class AIOpponent(Player):
         touch.do()
         return (x,y)
 
-<<<<<<< HEAD
-
 class NetworkRemoteOpponent(Player):
     def __init__(self, lcd):
         Player.__init__(self, Board(lcd, "Remote"))
@@ -364,8 +362,8 @@ async def mainTorpedo():
         touch = liblcd.SmartTouch(screen)
         last_maybe_square = None
 
-        player = Human(screen)
         opponent = AIOpponent(screen)
+        player = Human(screen)
 
         players = [opponent, player]
 
