@@ -235,9 +235,6 @@ class Player(object):
         self.ships = set()
         self.hits = set()
 
-    def isRemote(self):
-        return True
-
     def shot(self, x, y):
         is_hit = False
         is_sunk = set()
@@ -314,15 +311,87 @@ class AIOpponent(Player):
         touch.do()
         return (x,y)
 
+
+class NetworkLocalPlayer(Player):
+    def __init__(self, lcd):
+        Player.__init__(self, Board(lcd, "Self"))
+        self.ships = Ship.randomizeShips()
+        for ship in self.ships:
+            self.board.placeShip(ship)
+        self.last_touched = None
+
+    def myStep(self, touch, visible_board):
+        t = touch.get()
+        if not t and self.last_touched:
+            # Released, last_touched is the clicked
+            last_x, last_y = self.last_touched
+            last_square = visible_board.getSquare(last_x, last_y)
+            last_square.setMaybe(False)
+            self.last_touched = None
+            # Send (last_x, last_y, False)
+            return (last_x, last_y)
+        clicked = None
+        if t:
+            clicked = visible_board.checkTouch(t)
+        if clicked == self.last_touched:
+            # No change
+            return None
+        if self.last_touched:
+            # Change, invalidate last_touched, it'll be reset later
+            last_x, last_y = self.last_touched
+            last_square = visible_board.getSquare(last_x, last_y)
+            last_square.setMaybe(False)
+            self.last_touched = None
+        if clicked:
+            self.last_touched = clicked
+            x, y = clicked
+            last_square = visible_board.getSquare(x, y)
+            last_square.setMaybe(True)
+            # Send (x, y, True)
+        return None
+
+class NetworkRemoteOpponent(Player):
+    def __init__(self, lcd):
+        Player.__init__(self, Board(lcd, "Remote"))
+        self.last_maybe = None
+
+    def shot(self, x, y):
+        # Send (x,y)
+        # Receive: ShotResult object
+        return ShotResult(x, y, valid, is_hit, is_sunk)
+
+    def applyShotResult(self, shot_result):
+        # Send (shot_result)
+        Player.applyShotResult(shot_result)
+
+    def myStep(self, touch, visible_board):
+        # Receive (x,y,is_final) or None
+        if not recv:
+            return None
+        x, y, is_final = recv
+        if self.last_maybe:
+            last_x, last_y = self.last_maybe
+            square = visible_board.getSquare(last_x, last_y)
+            square.setMaybe(False)
+            self.last_maybe = None
+        if not is_final:
+            if 0<=x<BOARD_WIDTH and 0<=y<BOARD_HEIGTH:
+                square = visible_board.getSquare(x, y)
+                square.setMaybe(True)
+                self.last_maybe = (x,y)
+            return None
+        return (x,y)
+
 def main():
     screen = liblcd.LCD_3inch5()
-    screen.BackLight(100)
+    screen.BackLight(10)
     screen.Clear()
     touch = liblcd.SmartTouch(screen)
     last_maybe_square = None
 
-    player = Human(screen)
     opponent = AIOpponent(screen)
+    # opponent = NetworkOpponent(screen)
+    player = Human(screen)
 
     players = [opponent, player]
 
