@@ -7,6 +7,7 @@ from timestats import Timer
 
 MAX_ITERATION = 100
 ABS_LIMIT = 100
+abs2 = ABS_LIMIT*ABS_LIMIT
 
 mandelTimer = Timer("Main.Mandelbrot")
 mandelSingleTimer = Timer("mandelbrotSingle", mandelTimer)
@@ -18,7 +19,8 @@ def mandelbrot(x, y):
         c = complex(x, y)
         z = complex(0, 0)
         step = 0
-        while step < MAX_ITERATION and abs(z) < ABS_LIMIT:
+        while step < MAX_ITERATION and (z.real*z.real + z.imag*z.imag) < abs2:
+        # while step < MAX_ITERATION and abs(z) < ABS_LIMIT:
             step += 1
             z = z*z+c
         return step

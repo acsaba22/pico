@@ -1,7 +1,7 @@
 import time
 import asyncio
 
-REPORTFREQUENCY = 2
+REPORTFREQUENCY = 30
 
 def formatUs(us):
     if us < 1e3:

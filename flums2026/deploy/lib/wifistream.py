@@ -41,13 +41,14 @@ class WifiClient:
         wlan.active(False)
         wlan.active(True)
         wlan.connect(SSID, PASSWORD)
-        while not wlan.isconnected():
-            pass
-        print("Client IP:", wlan.ifconfig()[0])
+        self._wlan = wlan
 
     async def connect(self):
+        while not self._wlan.isconnected():
+            await asyncio.sleep_ms(100)
+        print("Client IP:", self._wlan.ifconfig()[0])
         reader, writer = await asyncio.open_connection(SERVER_IP, PORT)
-        print("connected to server:")
+        print("connected to server")
         return reader, writer
 
 
@@ -92,6 +93,7 @@ class WifiStream(Stream):
     def __init__(self, mode):
         super().__init__()
         self.mode = mode
+        self.connected = False
         if mode == Mode.SERVER:
             self._server = WifiServer()
         elif mode == Mode.CLIENT:
@@ -102,7 +104,7 @@ class WifiStream(Stream):
     async def connectAndStartJobs(self):
         if self.mode == Mode.SERVER:
             reader, writer = await self._server.waitForClient()
-            self._startJobs(reader, writer)
         else:
             reader, writer = await self._client.connect()
-            self._startJobs(reader, writer)
+        self.connected = True
+        self._startJobs(reader, writer)
