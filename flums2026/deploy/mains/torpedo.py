@@ -133,12 +133,13 @@ class Ship(object):
         return None
 
 class ShotResult(object):
-    def __init__(self, x, y, valid, is_hit, is_sunk):
+    def __init__(self, x, y, valid, is_hit, is_sunk, lost):
         self.x = x
         self.y = y
         self.valid = valid
         self.is_hit = is_hit
         self.is_sunk = is_sunk or set()
+        self.lost = lost
 
     def __repr__(self):
         return f"({self.x},{self.y}) valid={self.valid} hit={self.is_hit} sunk={self.is_sunk}"
@@ -197,7 +198,8 @@ class Board(object):
             if not square.isHit():
                 square.setFace(Square.FACE_EMPTY_HIT)
                 valid_hit = True
-        shot_result = ShotResult(x, y, valid_hit, is_hit, is_sunk)
+        lost = not any(ship.isAlive() for self.ships)
+        shot_result = ShotResult(x, y, valid_hit, is_hit, is_sunk, lost)
         return shot_result
 
     # Returns the clicked Square after click, otherwise None
@@ -243,6 +245,7 @@ class Player(object):
     def shot(self, x, y):
         is_hit = False
         is_sunk = set()
+        lost = False
         valid = (x,y) not in self.hits
         if valid:
             self.hits.add((x,y))
@@ -252,7 +255,8 @@ class Player(object):
                     ship.lifeLost()
                     if not ship.isAlive():
                         is_sunk = ship.getCoords()
-        return ShotResult(x, y, valid, is_hit, is_sunk)
+            lost = not any(ship.isAlive() for ship in self.ships)
+        return ShotResult(x, y, valid, is_hit, is_sunk, lost)
 
     def applyShotResult(self, shot_result):
         self.board.applyShotResult(shot_result)
@@ -318,63 +322,25 @@ class AIOpponent(Player):
 
 <<<<<<< HEAD
 
-class NetworkLocalPlayer(Player):
-    def __init__(self, lcd):
-        Player.__init__(self, Board(lcd, "Self"))
-        self.ships = Ship.randomizeShips()
-        for ship in self.ships:
-            self.board.placeShip(ship)
-        self.last_touched = None
-
-    def myStep(self, touch, visible_board):
-        t = touch.get()
-        if not t and self.last_touched:
-            # Released, last_touched is the clicked
-            last_x, last_y = self.last_touched
-            last_square = visible_board.getSquare(last_x, last_y)
-            last_square.setMaybe(False)
-            self.last_touched = None
-            # Send (last_x, last_y, False)
-            return (last_x, last_y)
-        clicked = None
-        if t:
-            clicked = visible_board.checkTouch(t)
-        if clicked == self.last_touched:
-            # No change
-            return None
-        if self.last_touched:
-            # Change, invalidate last_touched, it'll be reset later
-            last_x, last_y = self.last_touched
-            last_square = visible_board.getSquare(last_x, last_y)
-            last_square.setMaybe(False)
-            self.last_touched = None
-        if clicked:
-            self.last_touched = clicked
-            x, y = clicked
-            last_square = visible_board.getSquare(x, y)
-            last_square.setMaybe(True)
-            # Send (x, y, True)
-        return None
-
 class NetworkRemoteOpponent(Player):
     def __init__(self, lcd):
         Player.__init__(self, Board(lcd, "Remote"))
         self.last_maybe = None
 
     def shot(self, x, y):
-        # Send (x,y)
-        # Receive: ShotResult object
-        return ShotResult(x, y, valid, is_hit, is_sunk)
+        # Send (SHOT,x,y)
+        # Receive: ShotResult object (blocking)
+        return ShotResult(x, y, valid, is_hit, is_sunk, lost)
 
     def applyShotResult(self, shot_result):
-        # Send (shot_result)
+        # Send (SHOT_RESULT, shot_result)
         Player.applyShotResult(shot_result)
 
     def myStep(self, touch, visible_board):
-        # Receive (x,y,is_final) or None
+        # Receive (HINT/SHOT,x,y) or None
         if not recv:
             return None
-        x, y, is_final = recv
+        is_final, x, y = recv.type == SHOT, recv.x, recv.y
         if self.last_maybe:
             last_x, last_y = self.last_maybe
             square = visible_board.getSquare(last_x, last_y)
