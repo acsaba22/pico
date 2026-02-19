@@ -127,11 +127,17 @@ class Ship(object):
             return ships
         return None
 
+class ShotResult(object):
+    def __init__(self, x, y, valid, is_hit, is_sunk):
+        self.x = x
+        self.y = y
+        self.valid = valid
+        self.is_hit = is_hit
+        self.is_sunk = is_sunk or set()
 
 class Board(object):
     def __init__(self, lcd, text, ships_visible):
         self.board = [[Square(lcd, x, y) for x in range(BOARD_WIDTH)] for y in range(BOARD_HEIGHT)]
-        self.last_maybe_square = None
         self.lcd = lcd
         self.text = text
         self.ships_visible = ships_visible
@@ -153,13 +159,26 @@ class Board(object):
     def getSquare(self, x, y):
         return self.board[y][x]
 
+    def applyShotResult(self, shot_result):
+        if shot_result.valid:
+            square = self.getSquare(shot_result.x, shot_result.y)
+            if shot_result.is_hit:
+                square.setFace(Square.FACE_SHIP_HIT)
+            else:
+                square.setFace(Square.FACE_EMPTY_HIT)
+            for (x,y) in shot_result.is_sunk:
+                self.board[y][x].setFace(Square.FACE_SHIP_SUNK)
+
     def shot(self, x, y):
         found_ship = False
         valid_hit = False
+        is_hit = False
+        is_sunk = set()
         for ship in self.ships:
             if (x,y) in ship.getCoords():
                 square = self.board[y][x]
                 found_ship = True
+                is_hit = True
                 if not square.isHit():
                     valid_hit = True
                     ship.lifeLost()
@@ -168,12 +187,15 @@ class Board(object):
                     else:
                         for x, y in ship.getCoords():
                             self.board[y][x].setFace(Square.FACE_SHIP_SUNK)
+                if not ship.isAlive():
+                    is_sunk = ship.getCoords()
         if not found_ship:
             square = self.board[y][x]
             if not square.isHit():
                 square.setFace(Square.FACE_EMPTY_HIT)
                 valid_hit = True
-        return valid_hit
+        shot_result = ShotResult(x, y, valid_hit, is_hit, is_sunk)
+        return shot_result
 
     # Returns the clicked Square after click, otherwise None
     def checkTouch(self, touch_point):
@@ -183,26 +205,7 @@ class Board(object):
             for row in self.board:
                 for square in row:
                     if square.isTouch(touch_coord):
-                        found = True
-                        if self.last_maybe_square:
-                            if square == self.last_maybe_square:
-                                break
-                            self.last_maybe_square.setMaybe(False)
-                            self.last_maybe_square = None
-                        square.setMaybe(True)
-                        self.last_maybe_square = square
-                        break
-                if found: break
-            if not found:
-                if self.last_maybe_square:
-                    self.last_maybe_square.setMaybe(False)
-                    self.last_maybe_square = None
-        else:
-            if self.last_maybe_square:
-                clicked = self.last_maybe_square
-                self.last_maybe_square.setMaybe(False)
-                self.last_maybe_square = None
-                return (clicked.x, clicked.y)
+                        return (square.x, square.y)
         return None
 
     def showLabel(self):
@@ -228,11 +231,89 @@ class Board(object):
                 square.draw()
         self.showLabel()
 
-def getEnemyClick():
-    time.sleep(2)
-    x = random.randint(0, BOARD_WIDTH-1)
-    y = random.randint(0, BOARD_HEIGHT-1)
-    return (x,y)
+class Player(object):
+    def __init__(self, self_board):
+        self.board = self_board
+        self.ships = set()
+        self.hits = set()
+
+    def isRemote(self):
+        return True
+
+    def shot(self, x, y):
+        is_hit = False
+        is_sunk = set()
+        valid = (x,y) not in self.hits
+        if valid:
+            self.hits.add((x,y))
+            for ship in self.ships:
+                if (x,y) in ship.getCoords():
+                    is_hit = True
+                    ship.lifeLost()
+                    if not ship.isAlive():
+                        is_sunk = ship.getCoords()
+        return ShotResult(x, y, valid, is_hit, is_sunk)
+
+    def applyShotResult(self, shot_result):
+        self.board.applyShotResult(shot_result)
+
+    def myStep(self, touch):
+        assert False, "unimplemented"
+
+    def show(self):
+        self.board.show()
+
+
+class Human(Player):
+    def __init__(self, lcd):
+        Player.__init__(self, Board(lcd, "Self", True))
+        self.ships = Ship.randomizeShips()
+        for ship in self.ships:
+            self.board.placeShip(ship)
+        self.last_touched = None
+
+    def myStep(self, touch, visible_board):
+        t = touch.get()
+        if not t and self.last_touched:
+            # Released, last_touched is the clicked
+            last_x, last_y = self.last_touched
+            last_square = visible_board.getSquare(last_x, last_y)
+            last_square.setMaybe(False)
+            self.last_touched = None
+            return (last_x, last_y)
+        clicked = None
+        if t:
+            clicked = visible_board.checkTouch(t)
+        if clicked == self.last_touched:
+            # No change
+            return None
+        if self.last_touched:
+            # Change, invalidate last_touched, it'll be reset later
+            last_x, last_y = self.last_touched
+            last_square = visible_board.getSquare(last_x, last_y)
+            last_square.setMaybe(False)
+            self.last_touched = None
+        if clicked:
+            self.last_touched = clicked
+            last_x, last_y = self.last_touched
+            last_square = visible_board.getSquare(last_x, last_y)
+            last_square.setMaybe(True)
+        return None
+
+class AIOpponent(Player):
+    def __init__(self, lcd):
+        Player.__init__(self, Board(lcd, "Computer", False))
+
+    def myStep(self, touch, visible_board):
+        time.sleep(1)
+        x = random.randint(0, BOARD_WIDTH-1)
+        y = random.randint(0, BOARD_HEIGHT-1)
+        square = visible_board.getSquare(x, y)
+        square.setMaybe(True)
+        time.sleep(1)
+        square.setMaybe(False)
+        touch.do()
+        return (x,y)
 
 def main():
     screen = liblcd.LCD_3inch5()
@@ -241,42 +322,22 @@ def main():
     touch = liblcd.SmartTouch(screen)
     last_maybe_square = None
 
-    enemy_board = Board(screen, "Enemy", False)
-    for ship in Ship.randomizeShips():
-        enemy_board.placeShip(ship)
-    self_board = Board(screen, "Self", True)
-    for ship in Ship.randomizeShips():
-        self_board.placeShip(ship)
+    player = Human(screen)
+    opponent = AIOpponent(screen)
 
-    is_enemys_turn = True
-    board_shown = self_board
+    players = [opponent, player]
 
-    board_shown.show()
+    players[-1].show()
     while True:
-        if is_enemys_turn:
-            touch.do()
-            clicked = getEnemyClick()
-        else:
-            t = touch.get()
-            clicked = board_shown.checkTouch(t)
+        clicked = players[0].myStep(touch, players[-1].board)
         if clicked:
             x, y = clicked
-            if is_enemys_turn:
-                square = board_shown.getSquare(x,y)
-                square.setMaybe(True)
+            shot_result = players[-1].shot(x, y)
+            players[-1].applyShotResult(shot_result)
+            if shot_result.valid:
                 time.sleep(1)
-                square.setMaybe(False)
-
-            valid_click = board_shown.shot(x, y)
-            if valid_click:
-                time.sleep(1)
-                is_enemys_turn = not is_enemys_turn
-                if is_enemys_turn:
-                    board_shown = self_board
-                else:
-                    board_shown = enemy_board
-                board_shown.show()
-                
+                players = [players[1], players[0]]
+                players[-1].show()                
 
 
 if __name__ == '__main__':
