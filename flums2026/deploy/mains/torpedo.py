@@ -41,7 +41,7 @@ class Square(object):
             Square.FACES[self.face])
 
     def isHit(self):
-        return self.face in (Square.FACE_SHIP_HIT, Square.FACE_EMPTY_HIT)
+        return self.face in (Square.FACE_SHIP_HIT, Square.FACE_EMPTY_HIT, Square.FACE_SHIP_SUNK)
 
     def draw(self):
         self.setFace(self.face)
@@ -169,8 +169,10 @@ class Board(object):
                         for x, y in ship.getCoords():
                             self.board[y][x].setFace(Square.FACE_SHIP_SUNK)
         if not found_ship:
-            self.board[y][x].setFace(Square.FACE_EMPTY_HIT)
-            valid_hit = True
+            square = self.board[y][x]
+            if not square.isHit():
+                square.setFace(Square.FACE_EMPTY_HIT)
+                valid_hit = True
         return valid_hit
 
     # Returns the clicked Square after click, otherwise None
