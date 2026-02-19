@@ -72,6 +72,7 @@ class Stream:
         self._sendQueue = deque((), QUEUE_SIZE)
         self._sendEvent = asyncio.Event()
         self._receiveQueue = deque((), QUEUE_SIZE)
+        self._receiveEvent = asyncio.Event()
 
     def _startJobs(self, reader, writer):
         jobs.start(self._senderTask(writer))
@@ -96,6 +97,7 @@ class Stream:
                 print("WARNING: receiveQueue full, dropping message")
             else:
                 self._receiveQueue.append(data.decode().strip())
+                self._receiveEvent.set()
 
     def send(self, msg):
         if len(self._sendQueue) >= QUEUE_SIZE:
@@ -107,6 +109,12 @@ class Stream:
     def receive(self):
         if not self._receiveQueue:
             return None
+        return self._receiveQueue.popleft()
+
+    async def receiveBlocking(self):
+        while not self._receiveQueue:
+            self._receiveEvent.clear()
+            await self._receiveEvent.wait()
         return self._receiveQueue.popleft()
 
 
