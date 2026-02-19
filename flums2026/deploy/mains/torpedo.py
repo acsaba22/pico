@@ -1,11 +1,10 @@
-import liblcd
-import time
 import framebuf
+import liblcd
+import random
+import time
 
-
-
-MIN_X, MAX_X = 5, 475
-MIN_Y, MAX_Y = 5, 315
+BOARD_WIDTH = 10
+BOARD_HEIGHT = 10
 
 class Square(object):
 
@@ -27,6 +26,7 @@ class Square(object):
     WIDTH, HEIGHT = 30, 30
 
     def __init__(self, lcd, x, y):
+        self.x, self.y = x, y
         x1, y1 = x*Square.WIDTH+10, y*Square.HEIGHT+10
         x2, y2 = x1+Square.WIDTH-1, y1+Square.HEIGHT-1
         self.lcd = lcd
@@ -39,6 +39,9 @@ class Square(object):
         self.lcd.ShowBufferAtBox(
             self._sprite_box,
             Square.FACES[self.face])
+
+    def isHit(self):
+        return self.face in (Square.FACE_SHIP_HIT, Square.FACE_EMPTY_HIT)
 
     def draw(self):
         self.setFace(self.face)
@@ -60,12 +63,112 @@ class Square(object):
     def isTouch(self, touch):
         return touch in self._touch_area
 
+
+class Ship(object):
+    def __init__(self, size, x, y, is_horizontal):
+        self.size = size
+        self.x = x
+        self.y = y
+        self.is_horizontal = is_horizontal
+        self.lives = size
+
+    def getCoords(self):
+        if self.is_horizontal:
+            return [(self.x+i,self.y) for i in range(self.size)]
+        else:
+            return [(self.x,self.y+i) for i in range(self.size)]
+
+    def isAlive(self):
+        return self.lives>0
+
+    def lifeLost(self):
+        self.lives -= 1
+
+    @staticmethod
+    def GetRandomShip(size):
+        is_horizontal = random.choice([True, False])
+        if is_horizontal:
+            x = random.randint(0, BOARD_WIDTH-size)
+            y = random.randint(0, BOARD_HEIGHT-1)
+        else:
+            x = random.randint(0, BOARD_WIDTH-1)
+            y = random.randint(0, BOARD_HEIGHT-size)
+        return Ship(size, x, y, is_horizontal)
+
+    @staticmethod
+    def CheckTooClose(old_ship, new_ship):
+        old_coords = set(old_ship.getCoords())
+        new_coords = set(new_ship.getCoords())
+        for x, y in old_coords:
+            for dx in range(-1, 2):
+                for dy in range(-1, 2):
+                    if (x+dx, y+dy) in new_coords:
+                        return True
+        return False
+
+    @staticmethod
+    def randomizeShips(ship_sizes = [2,2,3,3,4,5]):
+        valid_layout = False
+        while not valid_layout:
+            ships = []
+            valid_layout = True
+            for size in ship_sizes:
+                new_ship = Ship.GetRandomShip(size)
+                too_close = False
+                for old_ship in ships:
+                    if Ship.CheckTooClose(old_ship, new_ship):
+                        too_close = True
+                        break
+                if too_close:
+                    valid_layout = False
+                    break
+                ships.append(new_ship)
+        if valid_layout:
+            return ships
+        return None
+
+
 class Board(object):
-    def __init__(self, lcd, text):
-        self.board = [[Square(lcd, x, y) for x in range(10)] for y in range(10)]
+    def __init__(self, lcd, text, ships_visible):
+        self.board = [[Square(lcd, x, y) for x in range(BOARD_WIDTH)] for y in range(BOARD_HEIGHT)]
         self.last_maybe_square = None
         self.lcd = lcd
         self.text = text
+        self.ships_visible = ships_visible
+        self.ships = []
+
+    def placeShip(self, ship):
+        self.ships.append(ship)
+
+        if self.ships_visible:
+            for x, y in ship.getCoords():
+                self.board[y][x].setFace(Square.FACE_SHIP)
+
+    def hasShip(self, x, y):
+        for ship in self.ships:
+            if (x,y) in ship.getCoords():
+                return True
+        return False
+
+    def shot(self, x, y):
+        found_ship = False
+        valid_hit = False
+        for ship in self.ships:
+            if (x,y) in ship.getCoords():
+                square = self.board[y][x]
+                found_ship = True
+                if not square.isHit():
+                    valid_hit = True
+                    ship.lifeLost()
+                    if ship.isAlive():
+                        square.setFace(Square.FACE_SHIP_HIT)
+                    else:
+                        for x, y in ship.getCoords():
+                            self.board[y][x].setFace(Square.FACE_SHIP_SUNK)
+        if not found_ship:
+            self.board[y][x].setFace(Square.FACE_EMPTY_HIT)
+            valid_hit = True
+        return valid_hit
 
     # Returns the clicked Square after click, otherwise None
     def checkTouch(self, touch_point):
@@ -113,7 +216,6 @@ class Board(object):
         self.lcd.ShowBufferAtBox(
                 liblcd.Box(LABEL_X, LABEL_X+LABEL_WIDTH-1, LABEL_Y, LABEL_Y+LABEL_HEIGHT-1),
                 buf)
-        
 
     def show(self):
         for row in self.board:
@@ -129,8 +231,12 @@ def main():
     touch = liblcd.SmartTouch(screen)
     last_maybe_square = None
 
-    enemy_board = Board(screen, "Enemy")
-    self_board = Board(screen, "Self")
+    enemy_board = Board(screen, "Enemy", False)
+    for ship in Ship.randomizeShips():
+        enemy_board.placeShip(ship)
+    self_board = Board(screen, "Self", True)
+    for ship in Ship.randomizeShips():
+        self_board.placeShip(ship)
 
     board_shown = self_board
 
@@ -139,13 +245,7 @@ def main():
         t = touch.get()
         clicked = board_shown.checkTouch(t)
         if clicked:
-            valid_click = False
-            if clicked.face == Square.FACE_EMPTY:
-                clicked.setFace(Square.FACE_EMPTY_HIT)
-                valid_click = True
-            elif clicked.face == Square.FACE_SHIP:
-                clicked.setFace(Square.FACE_SHIP_HIT)
-                valid_click = True
+            valid_click = board_shown.shot(clicked.x, clicked.y)
             if valid_click:
                 time.sleep(1)
                 if board_shown == enemy_board:
