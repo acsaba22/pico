@@ -256,10 +256,15 @@ class Player(object):
                     if not ship.isAlive():
                         is_sunk = ship.getCoords()
             lost = not any(ship.isAlive() for ship in self.ships)
-        return ShotResult(x, y, valid, is_hit, is_sunk, lost)
-
-    def applyShotResult(self, shot_result):
+        shot_result = ShotResult(x, y, valid, is_hit, is_sunk, lost)
         self.board.applyShotResult(shot_result)
+        return shot_result
+
+    def stepResult(self, shot_result):
+        pass
+
+    async def do(self):
+        pass
 
     async def myStep(self, touch):
         assert False, "unimplemented"
@@ -320,6 +325,7 @@ class AIOpponent(Player):
         touch.do()
         return (x,y)
 
+
 class NetworkRemoteOpponent(Player):
     def __init__(self, lcd):
         Player.__init__(self, Board(lcd, "Remote"))
@@ -328,11 +334,9 @@ class NetworkRemoteOpponent(Player):
     def shot(self, x, y):
         # Send (SHOT,x,y)
         # Receive: ShotResult object (blocking)
-        return ShotResult(x, y, valid, is_hit, is_sunk, lost)
-
-    def applyShotResult(self, shot_result):
-        # Send (SHOT_RESULT, shot_result)
-        Player.applyShotResult(shot_result)
+        shot_result = ShotResult(x, y, valid, is_hit, is_sunk, lost)
+        self.board.applyShotResult(shot_result)
+        return shot_result
 
     async def myStep(self, touch, visible_board):
         # Receive (HINT/SHOT,x,y) or None
@@ -351,6 +355,10 @@ class NetworkRemoteOpponent(Player):
                 self.last_maybe = (x,y)
             return None
         return (x,y)
+
+    def stepResult(self, shot_result):
+        # SEND (SHOT_RESULT, shot_result)
+        pass
 
 initTimer = NewTimer("main.Init")
 
@@ -371,12 +379,14 @@ async def mainTorpedo():
 
     while True:
         await asyncio.sleep_ms(0)
+        for player in players:
+            await player.do()
         clicked = await players[0].myStep(touch, players[-1].board)
         if clicked:
             x, y = clicked
             shot_result = players[-1].shot(x, y)
+            players[0].stepResult(shot_result)
             # print (shot_result)
-            players[-1].applyShotResult(shot_result)
             if shot_result.valid:
                 if shot_result.lost:
                     # Player lost.
