@@ -1,7 +1,7 @@
 
 import pygame
 
-f = 'data/torpe14'
+f = '../flums2026/data/maybe'
 image = pygame.image.load(f+".png")
 out = open(f+".txt", "w")
 buffer = bytearray((image.get_height()) * image.get_width() * 2)
