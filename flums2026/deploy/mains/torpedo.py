@@ -150,6 +150,9 @@ class Board(object):
                 return True
         return False
 
+    def getSquare(self, x, y):
+        return self.board[y][x]
+
     def shot(self, x, y):
         found_ship = False
         valid_hit = False
@@ -256,6 +259,12 @@ def main():
             clicked = board_shown.checkTouch(t)
         if clicked:
             x, y = clicked
+            if is_enemys_turn:
+                square = board_shown.getSquare(x,y)
+                square.setMaybe(True)
+                time.sleep(1)
+                square.setMaybe(False)
+
             valid_click = board_shown.shot(x, y)
             if valid_click:
                 time.sleep(1)
