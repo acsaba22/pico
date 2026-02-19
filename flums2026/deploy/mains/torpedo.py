@@ -142,7 +142,7 @@ class ShotResult(object):
         self.lost = lost
 
     def __repr__(self):
-        return f"({self.x},{self.y}) valid={self.valid} hit={self.is_hit} sunk={self.is_sunk}"
+        return f"({self.x},{self.y}) valid={self.valid} hit={self.is_hit} sunk={self.is_sunk} lost={self.lost}"
 
 class Board(object):
     def __init__(self, lcd, text):
@@ -261,7 +261,7 @@ class Player(object):
     def applyShotResult(self, shot_result):
         self.board.applyShotResult(shot_result)
 
-    def myStep(self, touch):
+    async def myStep(self, touch):
         assert False, "unimplemented"
 
     def show(self):
@@ -276,7 +276,7 @@ class Human(Player):
             self.board.placeShip(ship)
         self.last_touched = None
 
-    def myStep(self, touch, visible_board):
+    async def myStep(self, touch, visible_board):
         t = touch.get()
         if not t and self.last_touched:
             # Released, last_touched is the clicked
@@ -309,13 +309,13 @@ class AIOpponent(Player):
         Player.__init__(self, Board(lcd, "Computer"))
         self.ships = Ship.randomizeShips()
 
-    def myStep(self, touch, visible_board):
-        time.sleep(1)
+    async def myStep(self, touch, visible_board):
+        await asyncio.sleep(1)
         x = random.randint(0, BOARD_WIDTH-1)
         y = random.randint(0, BOARD_HEIGHT-1)
         square = visible_board.getSquare(x, y)
         square.setMaybe(True)
-        time.sleep(1)
+        await asyncio.sleep(1)
         square.setMaybe(False)
         touch.do()
         return (x,y)
@@ -334,7 +334,7 @@ class NetworkRemoteOpponent(Player):
         # Send (SHOT_RESULT, shot_result)
         Player.applyShotResult(shot_result)
 
-    def myStep(self, touch, visible_board):
+    async def myStep(self, touch, visible_board):
         # Receive (HINT/SHOT,x,y) or None
         if not recv:
             return None
@@ -371,16 +371,21 @@ async def mainTorpedo():
 
     while True:
         await asyncio.sleep_ms(0)
-        clicked = players[0].myStep(touch, players[-1].board)
+        clicked = await players[0].myStep(touch, players[-1].board)
         if clicked:
             x, y = clicked
             shot_result = players[-1].shot(x, y)
-            print (shot_result)
+            # print (shot_result)
             players[-1].applyShotResult(shot_result)
             if shot_result.valid:
+                if shot_result.lost:
+                    # Player lost.
+                    break
                 await asyncio.sleep(1)
                 players = [players[1], players[0]]
                 players[-1].show()
+    
+    screen.Clear()
 
 async def main():
     jobs.start(BlinkStatus().run())
