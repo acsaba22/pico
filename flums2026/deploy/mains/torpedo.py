@@ -568,7 +568,8 @@ async def mainTorpedo():
 async def main():
     jobs.start(BlinkStatus().run())
     # jobs.start(timestats.stats.run())
-    jobs.start(comm.connectAndStartJobs())
+    if REMOTE_PLAY:
+        jobs.start(comm.connectAndStartJobs())
     jobs.start(mainTorpedo())
     await jobs.STOP.wait()
 
