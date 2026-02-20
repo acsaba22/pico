@@ -9,7 +9,7 @@ from timestats import NewTimer
 import asyncio
 import wifistream
 
-REMOTE_PLAY = True
+REMOTE_PLAY = False
 
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
@@ -37,7 +37,7 @@ class Square(object):
 
     def __init__(self, lcd, x, y):
         self.x, self.y = x, y
-        x1, y1 = x*Square.WIDTH+10, y*Square.HEIGHT+10
+        x1, y1 = x*(Square.WIDTH-1)+10, y*(Square.HEIGHT-1)+10
         x2, y2 = x1+Square.WIDTH-1, y1+Square.HEIGHT-1
         self.lcd = lcd
         self._sprite_box = liblcd.Box(x1, x2, y1, y2)
@@ -411,7 +411,7 @@ initTimer = NewTimer("main.Init")
 async def mainTorpedo():
     with initTimer:
         screen = liblcd.LCD_3inch5()
-        screen.BackLight(10)
+        screen.BackLight(40)
         screen.Clear()
         touch = liblcd.SmartTouch(screen)
         last_maybe_square = None
