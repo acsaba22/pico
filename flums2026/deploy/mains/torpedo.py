@@ -459,6 +459,8 @@ async def main():
     jobs.start(mainTorpedo())
     await jobs.STOP.wait()
 
+def run():
+    jobs.runMain(main())
 
 if __name__ == '__main__':
     jobs.runMain(main())
