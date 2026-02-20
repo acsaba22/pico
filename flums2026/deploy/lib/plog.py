@@ -1,5 +1,20 @@
-DEBUG = True
-deb = print if DEBUG else lambda *a, **k: None
+DEBUG = 1
+INFO = 2
+NONE = 3
 
-INFO = True
-deb = print if INFO else lambda *a, **k: None
+LEVEL = INFO # SET THIS
+
+def setLevel(level):
+    global LEVEL
+    LEVEL = level
+    _reset()
+
+deb = print
+info = print
+
+def _reset():
+    global deb, info
+    deb = print if LEVEL <= DEBUG else lambda *a, **k: None
+    info = print if LEVEL <= INFO else lambda *a, **k: None
+
+_reset()

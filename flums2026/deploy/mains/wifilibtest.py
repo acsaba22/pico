@@ -4,7 +4,7 @@ import wifistream
 import jobs
 import timestats
 
-MODE = wifistream.Mode.AUTO
+MODE = wifistream.Mode.SERVER
 comm = wifistream.WifiStream(MODE)
 
 led = machine.Pin("LED", machine.Pin.OUT)

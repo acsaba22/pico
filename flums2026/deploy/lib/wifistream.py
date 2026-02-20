@@ -2,11 +2,11 @@ import network
 import asyncio
 import jobs
 from collections import deque
-from plog import deb
+import plog
 
 QUEUE_SIZE = 100
 
-SSID = "pico-test"
+SSID = "pico-test3"
 PASSWORD = "12345678"
 PORT = 1234
 SERVER_IP = "192.168.4.1" # don't touch, should be ap.ifconfig()[0]
@@ -22,21 +22,23 @@ AUTO_TIMEOUT_MS = 5000
 class WifiServer:
     def __init__(self):
         ap = network.WLAN(network.AP_IF)
+        ap.active(False)
         ap.active(True)
         ap.config(ssid=SSID, password=PASSWORD)
-        deb("Server IP:", ap.ifconfig()[0])
+        plog.info(f"Wifi server start: {SSID} ; Server IP: {ap.ifconfig()[0]}"  )
         self._connected = asyncio.Event()
         self._reader = None
         self._writer = None
 
     async def _handleClient(self, reader, writer):
         ip, port = writer.get_extra_info('peername')
-        deb("connected:", ip, port)
+        plog.info("connected:", ip, port)
         self._reader = reader
         self._writer = writer
         self._connected.set()
 
     async def waitForClient(self):
+        plog.info("Waiting for connection")
         server = await asyncio.start_server(self._handleClient, "0.0.0.0", PORT)
         await self._connected.wait()
         return self._reader, self._writer
@@ -48,22 +50,24 @@ class WifiClient:
         wlan.active(False)
         wlan.active(True)
         wlan.connect(SSID, PASSWORD)
+        plog.info(f"Wifi Client Connecting: {SSID}")
         self._wlan = wlan
 
     def shutdown(self):
         self._wlan.active(False)
 
     async def connect(self, timeout_ms=None):
+        plog.info(f"Waiting to connect")
         elapsed = 0
         while not self._wlan.isconnected():
             if timeout_ms is not None and elapsed >= timeout_ms:
                 return False, None, None
             await asyncio.sleep_ms(100)
             elapsed += 100
-        deb("Client IP:", self._wlan.ifconfig()[0])
+        plog.info("Client IP:", self._wlan.ifconfig()[0])
         try:
             reader, writer = await asyncio.open_connection(SERVER_IP, PORT)
-            deb("connected to server")
+            plog.info("connected to server")
             return True, reader, writer
         except OSError:
             return False, None, None
@@ -85,26 +89,26 @@ class Stream:
             self._sendEvent.clear()
             while self._sendQueue:
                 msg = self._sendQueue.popleft()
-                deb("# COMM_SEND: ", msg) # DEBUG
+                plog.deb("# COMM_SEND: ", msg)
                 writer.write((msg + "\n").encode())
                 await writer.drain()
 
     async def _receiverTask(self, reader):
         while True:
             data = await reader.readline()
-            deb("# COMM_RECIEVED: ", data.decode().strip()) # DEBUG
+            plog.deb("# COMM_RECIEVED: ", data.decode().strip())
             if data == b"":
                 self._receiveQueue.append(None)  # disconnected
                 break
             if len(self._receiveQueue) >= QUEUE_SIZE:
-                deb("WARNING: receiveQueue full, dropping message")
+                plog.info("WARNING: receiveQueue full, dropping message")
             else:
                 self._receiveQueue.append(data.decode().strip())
                 self._receiveEvent.set()
 
     def send(self, msg):
         if len(self._sendQueue) >= QUEUE_SIZE:
-            deb("WARNING: sendQueue full, dropping message")
+            plog.info("WARNING: sendQueue full, dropping message")
         else:
             self._sendQueue.append(msg)
             self._sendEvent.set()
@@ -142,9 +146,9 @@ class WifiStream(Stream):
         if self.mode == Mode.AUTO:
             ok, reader, writer = await self._client.connect(timeout_ms=AUTO_TIMEOUT_MS)
             if ok:
-                deb("AUTO: acting as client")
+                plog.info("AUTO: acting as client")
             else:
-                deb("AUTO: no server found, acting as server")
+                plog.info("AUTO: no server found, acting as server")
                 self._client.shutdown()
                 self._server = WifiServer()
                 reader, writer = await self._server.waitForClient()
