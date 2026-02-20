@@ -148,6 +148,9 @@ class ShotResult(object):
     def __repr__(self):
         return f"({self.x},{self.y}) valid={self.valid} hit={self.is_hit} sunk={self.is_sunk} lost={self.lost}"
 
+    def __str__(self):
+        return f"ShotResult({self.x},{self.y},{self.valid},{self.is_hit},{self.is_sunk},{self.lost})"
+
 class Board(object):
     def __init__(self, lcd, text):
         self.board = [[Square(lcd, x, y) for x in range(BOARD_WIDTH)] for y in range(BOARD_HEIGHT)]
@@ -246,7 +249,7 @@ class Player(object):
         self.ships = set()
         self.hits = set()
 
-    def shot(self, x, y):
+    async def shot(self, x, y):
         is_hit = False
         is_sunk = set()
         lost = False
@@ -335,18 +338,40 @@ class NetworkRemoteOpponent(Player):
         Player.__init__(self, Board(lcd, "Remote"))
         self.last_maybe = None
 
-    def shot(self, x, y):
+    async def shot(self, x, y):
         # Send (SHOT,x,y)
+        comm.send(f"SHOT True,{x},{y}")
         # Receive: ShotResult object (blocking)
-        shot_result = ShotResult(x, y, valid, is_hit, is_sunk, lost)
+        recv = await comm.receiveBlocking()
+        while True:
+            if " " not in recv:
+                print("Invalid packet: ", recv)
+                continue
+            header, packet = recv.split(" ")
+            if header not in ("SHOT_RESULT"):
+                print("Invalid header: ", recv)
+                continue
+            break
+
+        shot_result = eval(packet)
+        # shot_result = ShotResult(x, y, valid, is_hit, is_sunk, lost)
         self.board.applyShotResult(shot_result)
         return shot_result
 
     async def myStep(self, touch, visible_board):
+        recv = comm.receive()
         # Receive (HINT/SHOT,x,y) or None
         if not recv:
             return None
-        is_final, x, y = recv.type == SHOT, recv.x, recv.y
+        if " " not in recv:
+            print("Invalid packet: ", recv)
+            return None
+        header, packet = recv.split(" ")
+        if header not in ("HINT", "SHOT"):
+            print("Invalid header: ", recv)
+            return None
+        is_final, x, y = eval(packet)
+
         if self.last_maybe:
             last_x, last_y = self.last_maybe
             square = visible_board.getSquare(last_x, last_y)
@@ -362,13 +387,20 @@ class NetworkRemoteOpponent(Player):
 
     def stepResult(self, shot_result):
         # SEND (SHOT_RESULT, shot_result)
+        packet = str(shot_result)
+        comm.send("SHOT_RESULT " + packet)
         pass
 
 async def isFirstPlayer():
     while True:
         token = "HANDSHAKE %04x" % random.randint(0,65535)
         comm.send(token)
-        other_token = await comm.receiveBlocking()
+        while True:
+            other_token = await comm.receiveBlocking()
+            if other_token.startswith("HANDSHAKE "):
+                break
+            print("Invalid packed received: ", other_token)            
+
         if other_token == token:
             continue
         return token < other_token:
@@ -406,7 +438,7 @@ async def mainTorpedo():
         clicked = await players[0].myStep(touch, players[-1].board)
         if clicked:
             x, y = clicked
-            shot_result = players[-1].shot(x, y)
+            shot_result = await players[-1].shot(x, y)
             players[0].stepResult(shot_result)
             # print (shot_result)
             if shot_result.valid:
