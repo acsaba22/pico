@@ -2,6 +2,7 @@ import network
 import asyncio
 import jobs
 from collections import deque
+from plog import deb
 
 QUEUE_SIZE = 100
 
@@ -23,14 +24,14 @@ class WifiServer:
         ap = network.WLAN(network.AP_IF)
         ap.active(True)
         ap.config(ssid=SSID, password=PASSWORD)
-        print("Server IP:", ap.ifconfig()[0])
+        deb("Server IP:", ap.ifconfig()[0])
         self._connected = asyncio.Event()
         self._reader = None
         self._writer = None
 
     async def _handleClient(self, reader, writer):
         ip, port = writer.get_extra_info('peername')
-        print("connected:", ip, port)
+        deb("connected:", ip, port)
         self._reader = reader
         self._writer = writer
         self._connected.set()
@@ -59,10 +60,10 @@ class WifiClient:
                 return False, None, None
             await asyncio.sleep_ms(100)
             elapsed += 100
-        print("Client IP:", self._wlan.ifconfig()[0])
+        deb("Client IP:", self._wlan.ifconfig()[0])
         try:
             reader, writer = await asyncio.open_connection(SERVER_IP, PORT)
-            print("connected to server")
+            deb("connected to server")
             return True, reader, writer
         except OSError:
             return False, None, None
@@ -84,26 +85,26 @@ class Stream:
             self._sendEvent.clear()
             while self._sendQueue:
                 msg = self._sendQueue.popleft()
-                print("# COMM_SEND: ", msg) # DEBUG
+                deb("# COMM_SEND: ", msg) # DEBUG
                 writer.write((msg + "\n").encode())
                 await writer.drain()
 
     async def _receiverTask(self, reader):
         while True:
             data = await reader.readline()
-            print("# COMM_RECIEVED: ", data.decode().strip()) # DEBUG
+            deb("# COMM_RECIEVED: ", data.decode().strip()) # DEBUG
             if data == b"":
                 self._receiveQueue.append(None)  # disconnected
                 break
             if len(self._receiveQueue) >= QUEUE_SIZE:
-                print("WARNING: receiveQueue full, dropping message")
+                deb("WARNING: receiveQueue full, dropping message")
             else:
                 self._receiveQueue.append(data.decode().strip())
                 self._receiveEvent.set()
 
     def send(self, msg):
         if len(self._sendQueue) >= QUEUE_SIZE:
-            print("WARNING: sendQueue full, dropping message")
+            deb("WARNING: sendQueue full, dropping message")
         else:
             self._sendQueue.append(msg)
             self._sendEvent.set()
@@ -141,9 +142,9 @@ class WifiStream(Stream):
         if self.mode == Mode.AUTO:
             ok, reader, writer = await self._client.connect(timeout_ms=AUTO_TIMEOUT_MS)
             if ok:
-                print("AUTO: acting as client")
+                deb("AUTO: acting as client")
             else:
-                print("AUTO: no server found, acting as server")
+                deb("AUTO: no server found, acting as server")
                 self._client.shutdown()
                 self._server = WifiServer()
                 reader, writer = await self._server.waitForClient()
