@@ -4,9 +4,11 @@ import machine
 UNIT_MS = 200
 PAUSE = 2000
 
-WIFI_WAITING = "ti-ta-ti"
 WIFI_SERVER_CONNECTED = "ti"
+WIFI_SERVER_WAITING = "ti-ta-ta"
+
 WIFI_CLIENT_CONNECTED = "ti-ti"
+WIFI_CLIENT_WAITING = "ti-ti-ta-ta"
 
 status = [1]*10
 

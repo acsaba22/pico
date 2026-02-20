@@ -22,7 +22,7 @@ AUTO_TIMEOUT_MS = 5000
 
 class WifiServer:
     def __init__(self):
-        blinkstatus.Set(blinkstatus.WIFI_WAITING)
+        blinkstatus.Set(blinkstatus.WIFI_SERVER_WAITING)
         ap = network.WLAN(network.AP_IF)
         ap.active(False)
         ap.active(True)
@@ -49,6 +49,7 @@ class WifiServer:
 
 class WifiClient:
     def __init__(self):
+        blinkstatus.Set(blinkstatus.WIFI_CLIENT_WAITING)
         wlan = network.WLAN(network.STA_IF)
         wlan.active(False)
         wlan.active(True)
