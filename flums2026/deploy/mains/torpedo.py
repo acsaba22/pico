@@ -9,6 +9,7 @@ import asyncio
 import wifistream
 
 wifistream.SSID = "pico-torpedo"
+wifistream.AUTO_TIMEOUT_MS = 15000
 
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
@@ -600,6 +601,7 @@ async def mainTorpedo():
 
 
         players[-1].show()
+        players[0].your_turn()
 
         while True:
             await asyncio.sleep_ms(50)
