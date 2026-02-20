@@ -12,8 +12,8 @@ def main():
     bGameOfLife = liblcd.Button(screen, liblcd.Box(10, 110, 210, 250), "GameOfLife")
     bPaint = liblcd.Button(screen, liblcd.Box(10, 110, 260, 300), "paint")
     bTorpedo  = liblcd.Button(screen, liblcd.Box(130, 200, 10, 50), "Torpedo")
-    bMandel4 = liblcd.Button(screen, liblcd.Box(130, 200, 110, 150), "mandel Z")
-    bMandel3 = liblcd.Button(screen, liblcd.Box(130, 200, 160, 200), "mandel 3")
+    bSkiV2 = liblcd.Button(screen, liblcd.Box(130, 200, 110, 150), "ski v2")
+    bMandelZ = liblcd.Button(screen, liblcd.Box(130, 200, 160, 200), "mandel Z")
     bMandel2 = liblcd.Button(screen, liblcd.Box(130, 200, 210, 250), "mandel 2")
     bMandel1 = liblcd.Button(screen, liblcd.Box(130, 200, 260, 300), "mandel 1")
     bDisc = liblcd.Button(screen, liblcd.Box(130, 200, 60, 100), "Disc")
@@ -47,10 +47,7 @@ def main():
         if bMandel2.do(t):
             import mandelbrot_quick as prog
             prog.main()
-        if bMandel3.do(t):
-            import mandelbrot_window as prog
-            prog.main()
-        if bMandel4.do(t):
+        if bMandelZ.do(t):
             import z_mandelbrot as prog
             prog.main()
         if bDisc.do(t):
@@ -58,7 +55,10 @@ def main():
             prog.main()
         if bTorpedo.do(t):
             from mains import torpedo as prog
-            prog.run()
+            prog.main()
+        if bSkiV2.do(t):
+            from mains import skiV2 as prog
+            prog.main()
         if bInstall.do(t):
             import os
             os.rename('start.py', 'main.py')

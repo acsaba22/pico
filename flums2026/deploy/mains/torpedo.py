@@ -636,12 +636,12 @@ async def mainTorpedo():
         text_box.hide()
 
 
-async def main():
+async def run():
     jobs.start(mainTorpedo())
     await jobs.STOP.wait()
 
-def run():
-    jobs.runMain(main())
+def main():
+    jobs.runMain(run())
 
 if __name__ == '__main__':
-    jobs.runMain(main())
+    jobs.runMain(run())

@@ -388,13 +388,16 @@ async def skiMain():
         if finish_line:
             finish_line.hide()
 
-async def main():
+async def run():
     jobs.start(comm.connectAndStartJobs())
     jobs.start(skiMain())
     await jobs.STOP.wait()
 
+def main():
+    jobs.runMain(run())
+
 if __name__ == '__main__':
-    jobs.runMain(main())
+    main()
 
 
 
