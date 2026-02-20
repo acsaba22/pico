@@ -14,12 +14,36 @@ BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
 SHIP_SIZES = [2,2,3,3,4,5]
 
-if 1:
-    BOARD_WIDTH = 3
-    BOARD_HEIGHT = 3
-    SHIP_SIZES = [3,3]
+if 0:
+    BOARD_WIDTH = 1
+    BOARD_HEIGHT = 1
+    SHIP_SIZES = [1]
 
 comm = None
+
+
+class Text(object):
+    def __init__(self, lcd):
+        self.sprite = liblcd.Sprite(lcd, 160, 40)
+        self.fb = self.sprite.getFramebuffer()
+        self.fb.fill(liblcd.RED)
+        self.sprite.move(liblcd.Coord(240, 150))
+
+    def set_text(self, text_lines):
+        assert len(text_lines) < self.sprite.height // 8
+        top = self.sprite.height // 2 - len(text_lines)*4
+        self.fb.fill(liblcd.RED)
+        for line in text_lines:
+            left = max(0, self.sprite.width // 2 - len(line)*4)
+            self.fb.text(line, left, top, liblcd.BLACK)
+            top += 8
+        self.sprite.draw()
+
+    def show(self):
+        self.sprite.show()
+
+    def hide(self):
+        self.sprite.hide()
 
 class Square(object):
 
@@ -310,7 +334,7 @@ class Player(object):
 
 class Human(Player):
     def __init__(self, lcd, fire_button, mark_button, other_board):
-        Player.__init__(self, Board(lcd, "Self"))
+        Player.__init__(self, Board(lcd, "Human"))
         self.fire_button = fire_button
         self.mark_button = mark_button
         self.other_board = other_board
@@ -529,71 +553,88 @@ async def mainTorpedo():
     screen.BackLight(40)
     touch = liblcd.SmartTouch(screen)
 
+    text_box = Text(screen)
     screen.Clear()
-    button_singleplay = liblcd.Button3D(screen, liblcd.Box(140, 340, 100, 149), text="Single Player")
-    button_networkplay = liblcd.Button3D(screen, liblcd.Box(140, 340, 170, 219), text="Network Mode")
 
     fire_button = liblcd.Button3D(screen, liblcd.Box(340, 440, 220, 270), text="Fire", visible=False)
     mark_button = liblcd.Button3D(screen, liblcd.Box(340, 440, 150, 200), text="Mark", visible=False)
 
-    # Mode selection screen
-    while True:
-        await asyncio.sleep_ms(50)
-        t = touch.get()
-        if button_singleplay.do(t):
-            remote_play = False
-            break
-        if button_networkplay.do(t):
-            remote_play = True
-            break
-
-    screen.Clear()
-
-    is_first_play = False
-    if remote_play:
-        if not comm:
-            comm = wifistream.WifiStream(wifistream.Mode.AUTO)
-            jobs.start(comm.connectAndStartJobs())
-        is_first_play = await isFirstPlayer()
-        opponent = NetworkRemoteOpponent(screen)
-    else:
-        opponent = AIOpponent(screen)
-    player = Human(screen, fire_button, mark_button, opponent.board)
-
-    if is_first_play:
-        players = [player, opponent]
-    else:
-        players = [opponent, player]
-
-
-    players[-1].show()
+    button_singleplay = liblcd.Button3D(screen, liblcd.Box(140, 340, 100, 149), text="Single Player", visible=False)
+    button_networkplay = liblcd.Button3D(screen, liblcd.Box(140, 340, 170, 219), text="Network Mode", visible=False)
 
     while True:
-        await asyncio.sleep_ms(50)
-        for player in players:
-            await player.do()
-        touch.do()
-        clicked = await players[0].myStep(touch)
-        if clicked:
-            x, y, is_shot = clicked
-            if is_shot:
-                shot_result = await players[-1].shot(x, y)
-                players[0].stepResult(shot_result)
-                # print (shot_result)
-                if shot_result.valid:
-                    if shot_result.lost:
-                        # Player lost.
-                        break
-                    await asyncio.sleep(1)
-                    players = [players[1], players[0]]
-                    screen.Clear()
-                    # We show the other board
-                    players[-1].show()
-                    players[0].your_turn()
-            else:
-                await players[-1].hint(x, y)
-    
-    screen.Clear()
+        screen.Clear()
+        button_singleplay.draw()
+        button_networkplay.draw()
+        # Mode selection screen
+        while True:
+            await asyncio.sleep_ms(50)
+            t = touch.get()
+            if button_singleplay.do(t):
+                remote_play = False
+                break
+            if button_networkplay.do(t):
+                remote_play = True
+                break
+
+        screen.Clear()
+
+        is_first_play = False
+        if remote_play:
+            text_box.set_text(["Waiting for", "connection..."]);
+            text_box.show()
+            if not comm:
+                comm = wifistream.WifiStream(wifistream.Mode.AUTO)
+                jobs.start(comm.connectAndStartJobs())
+            is_first_play = await isFirstPlayer()
+            text_box.hide()
+            opponent = NetworkRemoteOpponent(screen)
+        else:
+            opponent = AIOpponent(screen)
+        player = Human(screen, fire_button, mark_button, opponent.board)
+
+        if is_first_play:
+            players = [player, opponent]
+        else:
+            players = [opponent, player]
+
+
+        players[-1].show()
+
+        while True:
+            await asyncio.sleep_ms(50)
+            for player in players:
+                await player.do()
+            touch.do()
+            clicked = await players[0].myStep(touch)
+            if clicked:
+                x, y, is_shot = clicked
+                if is_shot:
+                    shot_result = await players[-1].shot(x, y)
+                    players[0].stepResult(shot_result)
+                    # print (shot_result)
+                    if shot_result.valid:
+                        if shot_result.lost:
+                            # Player lost.
+                            break
+                        await asyncio.sleep(1)
+                        players = [players[1], players[0]]
+                        screen.Clear()
+                        # We show the other board
+                        players[-1].show()
+                        players[0].your_turn()
+                else:
+                    await players[-1].hint(x, y)
+        
+        text_box.set_text([players[0].board.text, "Won"])
+        text_box.show()
+
+        while screen.TouchGet():
+            pass
+        while not screen.TouchGet():
+            pass
+        text_box.hide()
+
 
 async def main():
     jobs.start(mainTorpedo())
