@@ -309,15 +309,39 @@ class Human(Player):
         for ship in self.ships:
             self.board.placeShip(ship)
         self.last_touched = None
+        self.marking = False
+        self.marking_face = None
 
     async def myStep(self, touch, visible_board):
         t = touch.get()
-        if self.mark_button.do(t) and self.last_touched:
+        if self.mark_button.do(t):
+            self.marking = not self.marking
+            if not self.marking:
+                self.mark_button.setText("Mark")
+            else:
+                self.mark_button.setText("Marking")
+            self.last_touched = None
+            self.marking_face = None
+            return (-1, -1, False)
+        if self.marking:
             # Released, last_touched is the clicked
-            last_x, last_y = self.last_touched
-            square = visible_board.getSquare(last_x, last_y)
-            if square.face == Square.FACE_EMPTY:
-                square.setFace(Square.FACE_MARKED)
+            clicked = visible_board.checkTouch(t)
+            if clicked:
+                last_x, last_y = clicked
+                square = visible_board.getSquare(last_x, last_y)
+                if self.marking_face is None:
+                    if square.face == Square.FACE_EMPTY:
+                        square.setFace(Square.FACE_MARKED)
+                        self.marking_face = square.face
+                    elif square.face == Square.FACE_MARKED:
+                        square.setFace(Square.FACE_EMPTY)
+                        self.marking_face = square.face
+                if self.last_touched != clicked:
+                    if square.face in (Square.FACE_EMPTY, Square.FACE_MARKED):
+                        square.setFace(self.marking_face)
+            else:
+                self.marking_face = None
+            self.last_touched = clicked
             return None
         elif self.fire_button.do(t) and self.last_touched:
             # Released, last_touched is the clicked
@@ -496,8 +520,10 @@ async def mainTorpedo():
         screen.BackLight(40)
         screen.Clear()
         touch = liblcd.SmartTouch(screen)
-        fire_button = liblcd.Button(screen, liblcd.Box(340, 440, 220, 270), "Fire")
-        mark_button = liblcd.Button(screen, liblcd.Box(340, 440, 150, 200), "Mark")
+        fire_button = liblcd.Button3D(screen, liblcd.Box(340, 440, 220, 270))
+        fire_button.setText("Fire")
+        mark_button = liblcd.Button3D(screen, liblcd.Box(340, 440, 150, 200))
+        mark_button.setText("Mark")
 
         is_first_play = False
         if REMOTE_PLAY:
