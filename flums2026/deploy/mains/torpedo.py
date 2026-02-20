@@ -554,8 +554,8 @@ async def mainTorpedo():
         if not comm:
             comm = wifistream.WifiStream(wifistream.Mode.AUTO)
             jobs.start(comm.connectAndStartJobs())
-        opponent = NetworkRemoteOpponent(screen)
         is_first_play = await isFirstPlayer()
+        opponent = NetworkRemoteOpponent(screen)
     else:
         opponent = AIOpponent(screen)
     player = Human(screen, fire_button, mark_button, opponent.board)
