@@ -8,10 +8,14 @@ from timestats import NewTimer
 import asyncio
 import wifistream
 
-REMOTE_PLAY = False
-
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
+SHIP_SIZES = [2,2,3,3,4,5]
+
+if 1:
+    BOARD_WIDTH = 3
+    BOARD_HEIGHT = 3
+    SHIP_SIZES = [3,3]
 
 comm = None
 
@@ -119,12 +123,12 @@ class Ship(object):
         return False
 
     @staticmethod
-    def randomizeShips(ship_sizes = [2,2,3,3,4,5]):
+    def randomizeShips():
         valid_layout = False
         while not valid_layout:
             ships = []
             valid_layout = True
-            for size in ship_sizes:
+            for size in SHIP_SIZES:
                 new_ship = Ship.GetRandomShip(size)
                 too_close = False
                 for old_ship in ships:
@@ -518,24 +522,38 @@ async def isFirstPlayer():
         return token < other_token
 
 async def mainTorpedo():
-    global comm
+    global comm, remote_play
     screen = liblcd.LCD_3inch5()
     screen.BackLight(40)
     touch = liblcd.SmartTouch(screen)
 
     screen.Clear()
-    button_singleplay = liblcd.Button3D(screen, liblcd.Box(140, 340, 100, 149), text="Single", visible=False)
-    button_networkplay = liblcd.Button3D(screen, liblcd.Box(140, 340, 170, 219), text="Network", visible=False)
+    button_singleplay = liblcd.Button3D(screen, liblcd.Box(140, 340, 100, 149), text="Single Player")
+    button_networkplay = liblcd.Button3D(screen, liblcd.Box(140, 340, 170, 219), text="Network Mode")
 
     fire_button = liblcd.Button3D(screen, liblcd.Box(340, 440, 220, 270), text="Fire", visible=False)
     mark_button = liblcd.Button3D(screen, liblcd.Box(340, 440, 150, 200), text="Mark", visible=False)
 
+    # Mode selection screen
+    while True:
+        await asyncio.sleep_ms(50)
+        t = touch.get()
+        if button_singleplay.do(t):
+            remote_play = False
+            break
+        if button_networkplay.do(t):
+            remote_play = True
+            break
+
+    screen.Clear()
+
     is_first_play = False
-    if REMOTE_PLAY:
-        jobs.start(comm.connectAndStartJobs())
+    if remote_play:
+        if not comm:
+            comm = wifistream.WifiStream(wifistream.Mode.AUTO)
+            jobs.start(comm.connectAndStartJobs())
         opponent = NetworkRemoteOpponent(screen)
         is_first_play = await isFirstPlayer()
-        comm = wifistream.WifiStream(wifistream.Mode.AUTO)
     else:
         opponent = AIOpponent(screen)
     player = Human(screen, fire_button, mark_button, opponent.board)
@@ -552,6 +570,7 @@ async def mainTorpedo():
         await asyncio.sleep_ms(50)
         for player in players:
             await player.do()
+        touch.do()
         clicked = await players[0].myStep(touch)
         if clicked:
             x, y, is_shot = clicked
