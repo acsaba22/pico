@@ -84,12 +84,14 @@ class Stream:
             self._sendEvent.clear()
             while self._sendQueue:
                 msg = self._sendQueue.popleft()
+                print("# COMM_SEND: ", msg) # DEBUG
                 writer.write((msg + "\n").encode())
                 await writer.drain()
 
     async def _receiverTask(self, reader):
         while True:
             data = await reader.readline()
+            print("# COMM_RECIEVED: ", data.decode().strip()) # DEBUG
             if data == b"":
                 self._receiveQueue.append(None)  # disconnected
                 break
