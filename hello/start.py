@@ -57,8 +57,8 @@ def main():
             import discs as prog
             prog.main()
         if bTorpedo.do(t):
-            import torpedo as prog
-            prog.main()
+            from mains import torpedo as prog
+            prog.run()
         if bInstall.do(t):
             import os
             os.rename('start.py', 'main.py')
