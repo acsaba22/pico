@@ -8,6 +8,8 @@ from timestats import NewTimer
 import asyncio
 import wifistream
 
+wifistream.SSID = "pico-torpedo"
+
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
 SHIP_SIZES = [2,2,3,3,4,5]
