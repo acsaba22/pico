@@ -3,7 +3,6 @@ import liblcd
 import random
 import time
 import jobs
-from blinkstatus import BlinkStatus
 import timestats
 from timestats import NewTimer
 import asyncio
@@ -14,7 +13,7 @@ REMOTE_PLAY = False
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
 
-comm = wifistream.WifiStream(wifistream.Mode.AUTO)
+comm = None
 
 class Square(object):
 
@@ -299,6 +298,9 @@ class Player(object):
     def show(self):
         self.board.show()
 
+    def your_turn(self):
+        """This is called, when this is the this players turn."""
+        pass
 
 class Human(Player):
     def __init__(self, lcd, fire_button, mark_button, other_board):
@@ -354,15 +356,17 @@ class Human(Player):
             if clicked == self.last_touched:
                 # No change
                 return None
-            # if self.last_touched:
-            #     # Change, invalidate last_touched, it'll be reset later
-            #     self.last_touched = None
-            #     return (-1,-1,False)  # Remove hint
             if clicked:
                 self.last_touched = clicked
                 x, y = clicked
                 return (x, y,False)  # Return hint
         return None
+
+    def your_turn(self):
+        """This is called, when this is the this players turn."""
+        Player.your_turn(self)
+        self.fire_button.draw()
+        self.mark_button.draw()
 
 class BasicAIOpponent(Player):
     def __init__(self, lcd):
@@ -513,34 +517,36 @@ async def isFirstPlayer():
             continue
         return token < other_token
 
-initTimer = NewTimer("main.Init")
-
 async def mainTorpedo():
-    with initTimer:
-        screen = liblcd.LCD_3inch5()
-        screen.BackLight(40)
-        screen.Clear()
-        touch = liblcd.SmartTouch(screen)
-        fire_button = liblcd.Button3D(screen, liblcd.Box(340, 440, 220, 270))
-        fire_button.setText("Fire")
-        mark_button = liblcd.Button3D(screen, liblcd.Box(340, 440, 150, 200))
-        mark_button.setText("Mark")
+    global comm
+    screen = liblcd.LCD_3inch5()
+    screen.BackLight(40)
+    touch = liblcd.SmartTouch(screen)
 
-        is_first_play = False
-        if REMOTE_PLAY:
-            opponent = NetworkRemoteOpponent(screen)
-            is_first_play = await isFirstPlayer()
-        else:
-            opponent = AIOpponent(screen)
-        player = Human(screen, fire_button, mark_button, opponent.board)
+    screen.Clear()
+    button_singleplay = liblcd.Button3D(screen, liblcd.Box(140, 340, 100, 149), text="Single", visible=False)
+    button_networkplay = liblcd.Button3D(screen, liblcd.Box(140, 340, 170, 219), text="Network", visible=False)
 
-        if is_first_play:
-            players = [player, opponent]
-        else:
-            players = [opponent, player]
+    fire_button = liblcd.Button3D(screen, liblcd.Box(340, 440, 220, 270), text="Fire", visible=False)
+    mark_button = liblcd.Button3D(screen, liblcd.Box(340, 440, 150, 200), text="Mark", visible=False)
+
+    is_first_play = False
+    if REMOTE_PLAY:
+        jobs.start(comm.connectAndStartJobs())
+        opponent = NetworkRemoteOpponent(screen)
+        is_first_play = await isFirstPlayer()
+        comm = wifistream.WifiStream(wifistream.Mode.AUTO)
+    else:
+        opponent = AIOpponent(screen)
+    player = Human(screen, fire_button, mark_button, opponent.board)
+
+    if is_first_play:
+        players = [player, opponent]
+    else:
+        players = [opponent, player]
 
 
-        players[-1].show()
+    players[-1].show()
 
     while True:
         await asyncio.sleep_ms(50)
@@ -559,17 +565,16 @@ async def mainTorpedo():
                         break
                     await asyncio.sleep(1)
                     players = [players[1], players[0]]
+                    screen.Clear()
+                    # We show the other board
                     players[-1].show()
+                    players[0].your_turn()
             else:
                 await players[-1].hint(x, y)
     
     screen.Clear()
 
 async def main():
-    jobs.start(BlinkStatus().run())
-    # jobs.start(timestats.stats.run())
-    if REMOTE_PLAY:
-        jobs.start(comm.connectAndStartJobs())
     jobs.start(mainTorpedo())
     await jobs.STOP.wait()
 

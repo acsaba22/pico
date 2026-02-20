@@ -414,7 +414,8 @@ class Button(object):
                  color_surface=RGB_FB(160, 160, 160),
                  color_surface_pressed=RGB_FB(128, 128, 128),
                  color_text=RGB_FB(0, 0, 0),
-                 callback=lambda: None):
+                 callback=lambda: None,
+                 visible=True):
         self._state = 0
 
         self.screen = screen
@@ -426,7 +427,8 @@ class Button(object):
         self.color_surface_pressed = color_surface_pressed
         self.color_text = color_text
         self.callback = callback
-        self.draw()
+        if visible:
+            self.draw()
 
     def draw(self):
         if self._state:
@@ -538,7 +540,7 @@ class Button3D(Button):
                  **kwargs):
         self.color_edge_dark = color_edge_dark
         self.color_edge_light = color_edge_light
-        Button.__init__(self, screen, box, kwargs)
+        Button.__init__(self, screen, box, **kwargs)
 
     def _drawUpLeftEdge(self, fb, color):
         fb.hline(0, 0, self.box.width-1, color)
