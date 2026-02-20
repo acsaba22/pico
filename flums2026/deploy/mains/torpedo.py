@@ -293,7 +293,7 @@ class Player(object):
     async def do(self):
         pass
 
-    async def myStep(self, touch, visible_board):
+    async def myStep(self, touch):
         assert False, "unimplemented"
 
     def show(self):
@@ -301,10 +301,11 @@ class Player(object):
 
 
 class Human(Player):
-    def __init__(self, lcd, fire_button, mark_button):
+    def __init__(self, lcd, fire_button, mark_button, other_board):
         Player.__init__(self, Board(lcd, "Self"))
         self.fire_button = fire_button
         self.mark_button = mark_button
+        self.other_board = other_board
         self.ships = Ship.randomizeShips()
         for ship in self.ships:
             self.board.placeShip(ship)
@@ -312,7 +313,7 @@ class Human(Player):
         self.marking = False
         self.marking_face = None
 
-    async def myStep(self, touch, visible_board):
+    async def myStep(self, touch):
         t = touch.get()
         if self.mark_button.do(t):
             self.marking = not self.marking
@@ -325,10 +326,10 @@ class Human(Player):
             return (-1, -1, False)
         if self.marking:
             # Released, last_touched is the clicked
-            clicked = visible_board.checkTouch(t)
+            clicked = self.other_board.checkTouch(t)
             if clicked:
                 last_x, last_y = clicked
-                square = visible_board.getSquare(last_x, last_y)
+                square = self.other_board.getSquare(last_x, last_y)
                 if self.marking_face is None:
                     if square.face == Square.FACE_EMPTY:
                         square.setFace(Square.FACE_MARKED)
@@ -349,7 +350,7 @@ class Human(Player):
             self.last_touched = None
             return (last_x, last_y, True)  # Return shot
         if t:
-            clicked = visible_board.checkTouch(t)
+            clicked = self.other_board.checkTouch(t)
             if clicked == self.last_touched:
                 # No change
                 return None
@@ -374,7 +375,7 @@ class BasicAIOpponent(Player):
         y = random.randint(0, BOARD_HEIGHT-1)
         return (x,y)
 
-    async def myStep(self, touch, visible_board):
+    async def myStep(self, touch):
         if self.last_action is None:
             self.last_action = ("AIM", None, time.ticks_ms())
             return None
@@ -476,7 +477,7 @@ class NetworkRemoteOpponent(Player):
         self.board.applyShotResult(shot_result)
         return shot_result
 
-    async def myStep(self, touch, visible_board):
+    async def myStep(self, touch):
         recv = comm.receive()
         # Receive (HINT/SHOT,x,y) or None
         if not recv:
@@ -531,7 +532,7 @@ async def mainTorpedo():
             is_first_play = await isFirstPlayer()
         else:
             opponent = AIOpponent(screen)
-        player = Human(screen, fire_button, mark_button)
+        player = Human(screen, fire_button, mark_button, opponent.board)
 
         if is_first_play:
             players = [player, opponent]
@@ -545,7 +546,7 @@ async def mainTorpedo():
         await asyncio.sleep_ms(50)
         for player in players:
             await player.do()
-        clicked = await players[0].myStep(touch, players[-1].board)
+        clicked = await players[0].myStep(touch)
         if clicked:
             x, y, is_shot = clicked
             if is_shot:
