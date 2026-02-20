@@ -298,8 +298,9 @@ class Player(object):
 
 
 class Human(Player):
-    def __init__(self, lcd):
+    def __init__(self, lcd, fire_button):
         Player.__init__(self, Board(lcd, "Self"))
+        self.fire_button = fire_button
         self.ships = Ship.randomizeShips()
         for ship in self.ships:
             self.board.placeShip(ship)
@@ -307,25 +308,24 @@ class Human(Player):
 
     async def myStep(self, touch, visible_board):
         t = touch.get()
-        if not t and self.last_touched:
+        if self.fire_button.do(t) and self.last_touched:
             # Released, last_touched is the clicked
             last_x, last_y = self.last_touched
             self.last_touched = None
             return (last_x, last_y, True)  # Return shot
-        clicked = None
         if t:
             clicked = visible_board.checkTouch(t)
-        if clicked == self.last_touched:
-            # No change
-            return None
-        if self.last_touched:
-            # Change, invalidate last_touched, it'll be reset later
-            self.last_touched = None
-            return (-1,-1,False)  # Remove hint
-        if clicked:
-            self.last_touched = clicked
-            x, y = clicked
-            return (x, y,False)  # Return hint
+            if clicked == self.last_touched:
+                # No change
+                return None
+            # if self.last_touched:
+            #     # Change, invalidate last_touched, it'll be reset later
+            #     self.last_touched = None
+            #     return (-1,-1,False)  # Remove hint
+            if clicked:
+                self.last_touched = clicked
+                x, y = clicked
+                return (x, y,False)  # Return hint
         return None
 
 class BasicAIOpponent(Player):
@@ -485,7 +485,7 @@ async def mainTorpedo():
         screen.BackLight(40)
         screen.Clear()
         touch = liblcd.SmartTouch(screen)
-        last_maybe_square = None
+        fire_button = liblcd.Button(screen, liblcd.Box(360, 420, 200, 240), "Fire")
 
         is_first_play = False
         if REMOTE_PLAY:
@@ -493,7 +493,7 @@ async def mainTorpedo():
             is_first_play = await isFirstPlayer()
         else:
             opponent = AIOpponent(screen)
-        player = Human(screen)
+        player = Human(screen, fire_button)
 
         if is_first_play:
             players = [player, opponent]
