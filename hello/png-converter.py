@@ -1,7 +1,7 @@
 
 import pygame
 
-f = '../flums2026/data/maybe'
+f = '../flums2026/data/torpedo/ship_sunk'
 image = pygame.image.load(f+".png")
 out = open(f+".txt", "w")
 buffer = bytearray((image.get_height()) * image.get_width() * 2)
