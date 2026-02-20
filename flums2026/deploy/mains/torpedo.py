@@ -14,7 +14,7 @@ REMOTE_PLAY = True
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
 
-comm = wifistream.WifiStream()
+comm = wifistream.WifiStream(wifistream.Mode.AUTO)
 
 class Square(object):
 
@@ -348,7 +348,7 @@ class NetworkRemoteOpponent(Player):
             if " " not in recv:
                 print("Invalid packet: ", recv)
                 continue
-            header, packet = recv.split(" ")
+            header, packet = recv.split(" ", 1)
             if header not in ("SHOT_RESULT"):
                 print("Invalid header: ", recv)
                 continue
@@ -367,7 +367,7 @@ class NetworkRemoteOpponent(Player):
         if " " not in recv:
             print("Invalid packet: ", recv)
             return None
-        header, packet = recv.split(" ")
+        header, packet = recv.split(" ", 1)
         if header not in ("HINT", "SHOT"):
             print("Invalid header: ", recv)
             return None
