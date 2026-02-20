@@ -263,9 +263,10 @@ class Player(object):
         self.hits = set()
 
     async def hint(self, x, y):
-        pass        
+        self.board.setMaybe(x,y,True)
 
     async def shot(self, x, y):
+        self.board.setMaybe(x,y,False)
         is_hit = False
         is_sunk = set()
         lost = False
@@ -304,17 +305,13 @@ class Human(Player):
             self.board.placeShip(ship)
         self.last_touched = None
 
-    async def hint(self, x, y):
-        self.board.setMaybe(x,y,True)
-
     async def myStep(self, touch, visible_board):
         t = touch.get()
         if not t and self.last_touched:
             # Released, last_touched is the clicked
             last_x, last_y = self.last_touched
-            visible_board.setMaybe(last_x, last_y, False)
             self.last_touched = None
-            return (last_x, last_y, True)
+            return (last_x, last_y, True)  # Return shot
         clicked = None
         if t:
             clicked = visible_board.checkTouch(t)
@@ -323,13 +320,12 @@ class Human(Player):
             return None
         if self.last_touched:
             # Change, invalidate last_touched, it'll be reset later
-            last_x, last_y = self.last_touched
-            visible_board.setMaybe(last_x, last_y, False)
             self.last_touched = None
+            return (-1,-1,False)  # Remove hint
         if clicked:
             self.last_touched = clicked
-            last_x, last_y = self.last_touched
-            visible_board.setMaybe(last_x, last_y, True)
+            x, y = clicked
+            return (x, y,False)  # Return hint
         return None
 
 class AIOpponent(Player):
@@ -365,10 +361,10 @@ class AIOpponent(Player):
 class NetworkRemoteOpponent(Player):
     def __init__(self, lcd):
         Player.__init__(self, Board(lcd, "Remote"))
-        self.last_maybe = None
 
     async def hint(self, x, y):
         # Send (HINT,x,y)
+        await Player.hint(x,y)
         comm.send(f"HINT False,{x},{y}")
 
     async def shot(self, x, y):
@@ -387,7 +383,6 @@ class NetworkRemoteOpponent(Player):
             break
 
         shot_result = eval(packet)
-        # shot_result = ShotResult(x, y, valid, is_hit, is_sunk, lost)
         self.board.applyShotResult(shot_result)
         return shot_result
 
@@ -405,18 +400,7 @@ class NetworkRemoteOpponent(Player):
             return None
         is_final, x, y = eval(packet)
 
-        if self.last_maybe:
-            last_x, last_y = self.last_maybe
-            square = visible_board.getSquare(last_x, last_y)
-            square.setMaybe(False)
-            self.last_maybe = None
-        if not is_final:
-            if 0<=x<BOARD_WIDTH and 0<=y<BOARD_HEIGTH:
-                square = visible_board.getSquare(x, y)
-                square.setMaybe(True)
-                self.last_maybe = (x,y)
-            return None
-        return (x,y,True)
+        return (x,y,is_final)
 
     def stepResult(self, shot_result):
         # SEND (SHOT_RESULT, shot_result)
@@ -471,7 +455,6 @@ async def mainTorpedo():
         clicked = await players[0].myStep(touch, players[-1].board)
         if clicked:
             x, y, is_shot = clicked
-            print (clicked)
             if is_shot:
                 shot_result = await players[-1].shot(x, y)
                 players[0].stepResult(shot_result)
@@ -484,7 +467,7 @@ async def mainTorpedo():
                     players = [players[1], players[0]]
                     players[-1].show()
             else:
-                players[-1].hint(x, y)
+                await players[-1].hint(x, y)
     
     screen.Clear()
 
