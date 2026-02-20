@@ -1,2 +1,5 @@
 .vscode
 .mypy_cache/
+__pycache__
+/tmp/
+/flums2026/deploy/main.py

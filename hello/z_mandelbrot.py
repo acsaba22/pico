@@ -28,13 +28,13 @@ def mandelbrot(x, y):
     step = 0
     while step < MAX_ITERATION and abs(z) < ABS_LIMIT:
         step += 1
-        z = z**2 + c
+        z = z*z + c
     return step
 
-def draw_mandelbrot(lcd):
+def draw_mandelbrot(lcd, step=1):
     zoom = 0.004
     zoom = 0.01
-    step = 1
+    # step = 8
     offset = (0*-240, 0)
     zs = zoom*step
     buffer = bytearray(480*2)
@@ -57,7 +57,8 @@ def draw_mandelbrot(lcd):
 def main():
     screen = liblcd.LCD_3inch5()
     screen.BackLight(100)
-    draw_mandelbrot(screen)
+    for step in (16, 4, 1):
+        draw_mandelbrot(screen, step)
 
 if __name__=='__main__':
     main()
