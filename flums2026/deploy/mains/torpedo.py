@@ -7,8 +7,9 @@ from blinkstatus import BlinkStatus
 import timestats
 from timestats import NewTimer
 import asyncio
+import wifistream
 
-REMOTE_PLAY = False
+REMOTE_PLAY = True
 
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
@@ -403,7 +404,7 @@ async def isFirstPlayer():
 
         if other_token == token:
             continue
-        return token < other_token:
+        return token < other_token
 
 initTimer = NewTimer("main.Init")
 
