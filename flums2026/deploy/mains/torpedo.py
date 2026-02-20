@@ -9,7 +9,7 @@ from timestats import NewTimer
 import asyncio
 import wifistream
 
-REMOTE_PLAY = True
+REMOTE_PLAY = False
 
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
@@ -290,7 +290,7 @@ class Player(object):
     async def do(self):
         pass
 
-    async def myStep(self, touch):
+    async def myStep(self, touch, visible_board):
         assert False, "unimplemented"
 
     def show(self):
@@ -328,11 +328,16 @@ class Human(Player):
             return (x, y,False)  # Return hint
         return None
 
-class AIOpponent(Player):
+class BasicAIOpponent(Player):
     def __init__(self, lcd):
         Player.__init__(self, Board(lcd, "Computer"))
         self.ships = Ship.randomizeShips()
         self.last_action = None
+
+    def _guess(self):
+        x = random.randint(0, BOARD_WIDTH-1)
+        y = random.randint(0, BOARD_HEIGHT-1)
+        return (x,y)
 
     async def myStep(self, touch, visible_board):
         if self.last_action is None:
@@ -343,8 +348,7 @@ class AIOpponent(Player):
         if last_action_type == "AIM":
             if elapsed < 1000:
                 return None
-            x = random.randint(0, BOARD_WIDTH-1)
-            y = random.randint(0, BOARD_HEIGHT-1)
+            x, y = self._guess()
             self.last_action = ("HINT", (x,y), time.ticks_ms())
             return (x,y,False)  # Return a hint
         if last_action_type == "HINT":
@@ -357,6 +361,57 @@ class AIOpponent(Player):
         self.last_action = None
         return None
 
+class AIOpponent(BasicAIOpponent):
+    def __init__(self, lcd):
+        BasicAIOpponent.__init__(self, lcd)
+        self.remaining = set(
+            (x,y) for x in range(BOARD_WIDTH) for y in range(BOARD_HEIGHT)
+        )
+        self.opponent_ship_locations = set()
+        self.hits = set()
+
+    def _guess(self):
+        if not self.remaining:
+            print ("Impossible state")
+            return (1,1)
+        l = list(self.remaining)
+        if self.opponent_ship_locations:
+            candidates = set()
+            for x, y in self.opponent_ship_locations:
+                for dx in (-1,1):
+                    candidates.add((x+dx,y))
+                for dy in (-1,1):
+                    candidates.add((x,y+dy))
+            candidates.intersection_update(self.remaining)
+            if candidates:
+                # Prefer shooting near ship
+                l = list(candidates)
+            else:
+                print ("Impossible ships: ", self.opponent_ship_locations)
+        index = random.randint(0, len(l)-1)
+        next = l[index]
+        self.remaining.remove(next)
+        return next
+
+    def stepResult(self, shot_result):
+        if not shot_result.valid:
+            return
+        if shot_result.lost:
+            return
+        if shot_result.is_hit:
+            x, y = shot_result.x, shot_result.y
+            # Clean up 
+            for dx in (-1, 1):
+                for dy in (-1, 1):
+                    self.remaining.discard((x+dx,y+dy))
+            self.opponent_ship_locations.add((x,y))
+        if shot_result.is_sunk:
+            # remove all
+            for x, y in shot_result.is_sunk:
+                self.opponent_ship_locations.remove((x,y))
+                for dx in (-1, 1):
+                    for dy in (-1, 1):
+                        self.remaining.discard((x+dx,y+dy))
 
 class NetworkRemoteOpponent(Player):
     def __init__(self, lcd):
