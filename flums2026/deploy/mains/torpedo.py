@@ -591,6 +591,8 @@ async def mainTorpedo():
             text_box.hide()
             opponent = NetworkRemoteOpponent(screen)
         else:
+            if random.randint(0,1) == 1:
+                is_first_play = True
             opponent = AIOpponent(screen)
         player = Human(screen, fire_button, mark_button, opponent.board)
 
