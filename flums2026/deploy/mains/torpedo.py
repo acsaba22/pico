@@ -9,7 +9,7 @@ from timestats import NewTimer
 import asyncio
 import wifistream
 
-REMOTE_PLAY = False
+REMOTE_PLAY = True
 
 BOARD_WIDTH = 10
 BOARD_HEIGHT = 10
@@ -364,7 +364,7 @@ class NetworkRemoteOpponent(Player):
 
     async def hint(self, x, y):
         # Send (HINT,x,y)
-        await Player.hint(x,y)
+        await Player.hint(self,x,y)
         comm.send(f"HINT False,{x},{y}")
 
     async def shot(self, x, y):
