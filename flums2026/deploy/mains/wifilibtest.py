@@ -3,16 +3,17 @@ import machine
 import wifistream
 import jobs
 import timestats
+import blinkstatus
 
 MODE = wifistream.Mode.SERVER
 comm = wifistream.WifiStream(MODE)
 
-led = machine.Pin("LED", machine.Pin.OUT)
+# led = machine.Pin("LED", machine.Pin.OUT)
 
-async def blinkTask():
-    while True:
-        led.toggle()
-        await asyncio.sleep_ms(1000 if comm.isConnected() else 100)
+# async def blinkTask():
+#     while True:
+#         led.toggle()
+#         await asyncio.sleep_ms(1000 if comm.isConnected() else 100)
 
 async def commTask():
     count = 0
@@ -29,7 +30,6 @@ async def commTask():
         await asyncio.sleep_ms(1000)
 
 async def main():
-    jobs.start(blinkTask())
     jobs.start(comm.connectAndStartJobs())
     jobs.start(commTask())
     jobs.start(timestats.stats.run())

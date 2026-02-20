@@ -3,6 +3,7 @@ import asyncio
 import jobs
 from collections import deque
 import plog
+import blinkstatus
 
 QUEUE_SIZE = 100
 
@@ -21,6 +22,7 @@ AUTO_TIMEOUT_MS = 5000
 
 class WifiServer:
     def __init__(self):
+        blinkstatus.Set(blinkstatus.WIFI_WAITING)
         ap = network.WLAN(network.AP_IF)
         ap.active(False)
         ap.active(True)
@@ -41,6 +43,7 @@ class WifiServer:
         plog.info("Waiting for connection")
         server = await asyncio.start_server(self._handleClient, "0.0.0.0", PORT)
         await self._connected.wait()
+        blinkstatus.Set(blinkstatus.WIFI_SERVER_CONNECTED)
         return self._reader, self._writer
 
 
@@ -68,6 +71,7 @@ class WifiClient:
         try:
             reader, writer = await asyncio.open_connection(SERVER_IP, PORT)
             plog.info("connected to server")
+            blinkstatus.Set(blinkstatus.WIFI_CLIENT_CONNECTED)
             return True, reader, writer
         except OSError:
             return False, None, None
@@ -143,6 +147,7 @@ class WifiStream(Stream):
         return self.connected_
 
     async def connectAndStartJobs(self):
+        jobs.start(blinkstatus.RunBlink())
         if self.mode == Mode.AUTO:
             ok, reader, writer = await self._client.connect(timeout_ms=AUTO_TIMEOUT_MS)
             if ok:
