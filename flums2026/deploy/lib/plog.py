@@ -2,9 +2,9 @@ DEBUG = 1
 INFO = 2
 NONE = 3
 
-LEVEL = INFO # SET THIS
+LEVEL = DEBUG # SET THIS
 
-def setLevel(level):
+def SetLevel(level):
     global LEVEL
     LEVEL = level
     _reset()

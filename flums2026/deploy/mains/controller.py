@@ -4,7 +4,7 @@ import plog
 import wifistream
 import jobs
 
-plog.setLevel(plog.NONE)
+plog.SetLevel(plog.NONE)
 
 comm = wifistream.WifiStream(wifistream.Mode.CLIENT)
 

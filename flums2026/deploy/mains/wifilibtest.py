@@ -1,9 +1,9 @@
 import asyncio
 import machine
-import wifistream
 import jobs
 import timestats
 import blinkstatus
+import wifistream
 
 MODE = wifistream.Mode.SERVER
 comm = wifistream.WifiStream(MODE)
