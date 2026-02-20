@@ -157,6 +157,7 @@ class Board(object):
         self.board = [[Square(lcd, x, y) for x in range(BOARD_WIDTH)] for y in range(BOARD_HEIGHT)]
         self.lcd = lcd
         self.text = text
+        self.last_maybe = None
 
     def placeShip(self, ship):
         for x, y in ship.getCoords():
@@ -170,6 +171,17 @@ class Board(object):
 
     def getSquare(self, x, y):
         return self.board[y][x]
+
+    def setMaybe(self, x, y, is_maybe):
+        if is_maybe and self.last_maybe == (x,y):
+            return
+        if self.last_maybe:
+            last_x, last_y = self.last_maybe
+            self.board[last_y][last_x].setMaybe(False)
+            self.last_maybe = None
+        if is_maybe and 0<=x<BOARD_WIDTH and 0<=y<BOARD_HEIGHT:
+            self.board[y][x].setMaybe(is_maybe)
+            self.last_maybe = (x,y)
 
     def applyShotResult(self, shot_result):
         if shot_result.valid:
@@ -250,6 +262,9 @@ class Player(object):
         self.ships = set()
         self.hits = set()
 
+    async def hint(self, x, y):
+        pass        
+
     async def shot(self, x, y):
         is_hit = False
         is_sunk = set()
@@ -289,15 +304,17 @@ class Human(Player):
             self.board.placeShip(ship)
         self.last_touched = None
 
+    async def hint(self, x, y):
+        self.board.setMaybe(x,y,True)
+
     async def myStep(self, touch, visible_board):
         t = touch.get()
         if not t and self.last_touched:
             # Released, last_touched is the clicked
             last_x, last_y = self.last_touched
-            last_square = visible_board.getSquare(last_x, last_y)
-            last_square.setMaybe(False)
+            visible_board.setMaybe(last_x, last_y, False)
             self.last_touched = None
-            return (last_x, last_y)
+            return (last_x, last_y, True)
         clicked = None
         if t:
             clicked = visible_board.checkTouch(t)
@@ -307,37 +324,52 @@ class Human(Player):
         if self.last_touched:
             # Change, invalidate last_touched, it'll be reset later
             last_x, last_y = self.last_touched
-            last_square = visible_board.getSquare(last_x, last_y)
-            last_square.setMaybe(False)
+            visible_board.setMaybe(last_x, last_y, False)
             self.last_touched = None
         if clicked:
             self.last_touched = clicked
             last_x, last_y = self.last_touched
-            last_square = visible_board.getSquare(last_x, last_y)
-            last_square.setMaybe(True)
+            visible_board.setMaybe(last_x, last_y, True)
         return None
 
 class AIOpponent(Player):
     def __init__(self, lcd):
         Player.__init__(self, Board(lcd, "Computer"))
         self.ships = Ship.randomizeShips()
+        self.last_action = None
 
     async def myStep(self, touch, visible_board):
-        await asyncio.sleep(1)
-        x = random.randint(0, BOARD_WIDTH-1)
-        y = random.randint(0, BOARD_HEIGHT-1)
-        square = visible_board.getSquare(x, y)
-        square.setMaybe(True)
-        await asyncio.sleep(1)
-        square.setMaybe(False)
-        touch.do()
-        return (x,y)
+        if self.last_action is None:
+            self.last_action = ("AIM", None, time.ticks_ms())
+            return None
+        last_action_type, coord, last_action_time = self.last_action
+        elapsed = (time.ticks_diff(time.ticks_ms(), last_action_time))
+        if last_action_type == "AIM":
+            if elapsed < 1000:
+                return None
+            x = random.randint(0, BOARD_WIDTH-1)
+            y = random.randint(0, BOARD_HEIGHT-1)
+            self.last_action = ("HINT", (x,y), time.ticks_ms())
+            return (x,y,False)  # Return a hint
+        if last_action_type == "HINT":
+            if elapsed < 1000:
+                return None
+            self.last_action = None
+            x, y = coord
+            return (x,y,True)  # Return a shot
+        print("invalid action")
+        self.last_action = None
+        return None
 
 
 class NetworkRemoteOpponent(Player):
     def __init__(self, lcd):
         Player.__init__(self, Board(lcd, "Remote"))
         self.last_maybe = None
+
+    async def hint(self, x, y):
+        # Send (HINT,x,y)
+        comm.send(f"HINT False,{x},{y}")
 
     async def shot(self, x, y):
         # Send (SHOT,x,y)
@@ -384,7 +416,7 @@ class NetworkRemoteOpponent(Player):
                 square.setMaybe(True)
                 self.last_maybe = (x,y)
             return None
-        return (x,y)
+        return (x,y,True)
 
     def stepResult(self, shot_result):
         # SEND (SHOT_RESULT, shot_result)
@@ -433,22 +465,26 @@ async def mainTorpedo():
         players[-1].show()
 
     while True:
-        await asyncio.sleep_ms(0)
+        await asyncio.sleep_ms(50)
         for player in players:
             await player.do()
         clicked = await players[0].myStep(touch, players[-1].board)
         if clicked:
-            x, y = clicked
-            shot_result = await players[-1].shot(x, y)
-            players[0].stepResult(shot_result)
-            # print (shot_result)
-            if shot_result.valid:
-                if shot_result.lost:
-                    # Player lost.
-                    break
-                await asyncio.sleep(1)
-                players = [players[1], players[0]]
-                players[-1].show()
+            x, y, is_shot = clicked
+            print (clicked)
+            if is_shot:
+                shot_result = await players[-1].shot(x, y)
+                players[0].stepResult(shot_result)
+                # print (shot_result)
+                if shot_result.valid:
+                    if shot_result.lost:
+                        # Player lost.
+                        break
+                    await asyncio.sleep(1)
+                    players = [players[1], players[0]]
+                    players[-1].show()
+            else:
+                players[-1].hint(x, y)
     
     screen.Clear()
 
