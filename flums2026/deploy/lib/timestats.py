@@ -47,12 +47,12 @@ class Timer:
 
     def reportStr(self, programTime):
         s = self.name # TODO .ljust(10)
-        percentStr = ""
+        percentStr = f"{self.totalTime / programTime * 100:.1f}%"
+        percentParentStr = ""
         if self.parent == None:
-            percentStr = f"{self.totalTime / programTime * 100:.1f}% [Total]"
-        else:
-            percentStr = f"{self.totalTime / self.parent.totalTime * 100:.1f}% [{self.parent.name}]"
-        ret = f"{s} - {percentStr} {formatUs(self.totalTime)} / {self.count} = {formatUs(self.totalTime // max(1, self.count))}"
+            percentParentStr = f"[{self.totalTime / self.parent.totalTime * 100:.1f}% {self.parent.name}]"
+        ret = (f"{s} - {percentStr} {percentParentStr} {formatUs(self.totalTime)} " +
+          " / {self.count} = {formatUs(self.totalTime // max(1, self.count))}")
         return ret
 
 def NewTimer(name, parent = None):
