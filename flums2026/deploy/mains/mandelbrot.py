@@ -204,3 +204,21 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# Stats.report - 0.1% [Total] 61.95 ms / 4 = 15.49 ms
+# mandelbrot_line_16 - 0.0% [Total] 44.88 ms / 3 = 14.96 ms
+# mandelbrot_line2_16 - 0.2% [Total] 254.39 ms / 3 = 84.79 ms
+# mandelbrot_line3_16 - 0.1% [Total] 101.42 ms / 2 = 50.71 ms
+# mandelbrot_line4_16 - 0.1% [Total] 122.08 ms / 2 = 61.04 ms
+# mandelbrot_line_4 - 0.6% [Total] 649.05 ms / 10 = 64.90 ms
+# mandelbrot_line2_4 - 1.3% [Total] 1.43 s / 10 = 143.13 ms
+# mandelbrot_line3_4 - 0.8% [Total] 858.92 ms / 10 = 85.89 ms
+# mandelbrot_line4_4 - 0.9% [Total] 1.06 s / 10 = 106.09 ms
+# mandelbrot_line_2 - 2.4% [Total] 2.72 s / 20 = 136.04 ms
+# mandelbrot_line2_2 - 4.2% [Total] 4.71 s / 20 = 235.61 ms
+# mandelbrot_line3_2 - 2.5% [Total] 2.84 s / 20 = 142.05 ms
+# mandelbrot_line4_2 - 3.1% [Total] 3.51 s / 20 = 175.51 ms
+# mandelbrot_line_1 - 9.8% [Total] 11.10 s / 40 = 277.62 ms
+# mandelbrot_line2_1 - 18.5% [Total] 20.94 s / 40 = 523.43 ms
+# mandelbrot_line3_1 - 11.6% [Total] 13.07 s / 40 = 326.76 ms
+# mandelbrot_line4_1 - 13.2% [Total] 14.94 s / 40 = 373.45 ms
