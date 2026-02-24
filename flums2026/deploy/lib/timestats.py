@@ -1,7 +1,23 @@
 import time
 import asyncio
 
+DO_REPORT = True
 REPORTFREQUENCY = 30
+
+class YieldTimer:
+    def __init__(self, timeoutMs):
+        self.lastYield = time.ticks_ms()
+        self.timeoutMs = timeoutMs
+
+    async def yieldIfTimeout(self):
+        now = time.ticks_ms()
+        diff = time.ticks_diff(now, self.lastYield)
+        if self.timeoutMs < diff * 2:
+            await asyncio.sleep_ms(0)
+            self.lastYield = time.ticks_ms()
+
+        
+
 
 def formatUs(us):
     if us < 1e3:
@@ -49,14 +65,36 @@ class Timer:
         s = self.name # TODO .ljust(10)
         percentStr = f"{self.totalTime / programTime * 100:.1f}%"
         percentParentStr = ""
-        if self.parent == None:
+        if self.parent != None and 0 < self.parent.totalTime:
             percentParentStr = f"[{self.totalTime / self.parent.totalTime * 100:.1f}% {self.parent.name}]"
         ret = (f"{s} - {percentStr} {percentParentStr} {formatUs(self.totalTime)} " +
-          " / {self.count} = {formatUs(self.totalTime // max(1, self.count))}")
+          f" / {self.count} = {formatUs(self.totalTime // max(1, self.count))}")
         return ret
 
+class FakeTimer:
+    def __init__(self, name, parent = None):
+        pass
+
+    def start(self):
+        pass
+    
+    def __enter__(self):
+        pass
+
+    def stop(self):
+        pass
+
+    def __exit__(self, *args):
+        pass
+
+    def reportStr(self, programTime):
+        pass
+
 def NewTimer(name, parent = None):
-    return Timer(name, parent)
+    if DO_REPORT:
+        return Timer(name, parent)
+    else:
+        return FakeTimer(name, parent)
 
 class Stats:
     def __init__(self):
@@ -78,6 +116,8 @@ class Stats:
                 print("#", t.reportStr(totalTime))
 
     async def run(self):
+        if not DO_REPORT:
+            return
         while True:
             await asyncio.sleep(REPORTFREQUENCY)
             self.report()
